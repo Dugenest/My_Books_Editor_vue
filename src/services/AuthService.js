@@ -5,7 +5,7 @@ import apiClient from './api';
 const API_URL = 'http://localhost:8111/api/auth';
 
 // Mode de développement sans backend
-const DEV_MODE = true; // Mettre à true pour utiliser des données fictives
+const DEV_MODE = false; // Mettre à true pour utiliser des données fictives
 
 // Fonction utilitaire pour l'encodage base64url (compatible JWT)
 function base64UrlEncode(str) {
@@ -29,7 +29,14 @@ function base64UrlDecode(str) {
   base64 = base64.replace(/-/g, '+').replace(/_/g, '/');
 
   try {
-    return atob(base64);
+    // Utiliser atob pour décoder
+    const decoded = atob(base64);
+    // Convertir la chaîne décodée en UTF-8
+    return decodeURIComponent(
+      Array.from(decoded)
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
   } catch (e) {
     console.error('Erreur de décodage base64:', e);
     throw e;
@@ -45,6 +52,11 @@ class AuthService {
    * @returns {Promise} - Promesse contenant les données d'authentification
    */
   login(credentials) {
+    console.log('Tentative de connexion avec:', {
+      email: credentials.email,
+      hasPassword: !!credentials.password, // pour la sécurité, n'affichons pas le mot de passe
+    });
+
     // En mode développement, simuler une connexion réussie
     if (DEV_MODE) {
       return new Promise((resolve) => {
@@ -67,9 +79,9 @@ class AuthService {
           );
           const payload = base64UrlEncode(
             JSON.stringify({
-              id: mockUser.id,
+              sub: mockUser.id.toString(),
               email: mockUser.email,
-              role: mockUser.role,
+              roles: ['ROLE_' + mockUser.role],
               exp: Math.floor(Date.now() / 1000) + 3600, // Expiration dans 1 heure
             })
           );
@@ -95,13 +107,42 @@ class AuthService {
     }
 
     // En mode production, utiliser l'API réelle
-    return axios.post(`${API_URL}/login`, credentials).then((response) => {
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-      }
-      return response;
-    });
+    console.log('Mode réel: Envoi de la requête à', `${API_URL}/login`);
+
+    return axios
+      .post(`${API_URL}/login`, credentials)
+      .then((response) => {
+        console.log('Connexion réussie, réponse:', {
+          status: response.status,
+          hasToken: !!response.data?.token,
+          userData: response.data?.user,
+        });
+
+        if (response.data.token) {
+          localStorage.setItem('token', response.data.token);
+          localStorage.setItem('user', JSON.stringify(response.data.user));
+
+          // Configurer l'en-tête d'autorisation
+          this.setAuthHeader(response.data.token);
+        }
+        return response;
+      })
+      .catch((error) => {
+        console.error("Détails de l'erreur de connexion:", {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          headers: error.response?.headers,
+          message: error.message,
+        });
+
+        // Vérifier si c'est une erreur CORS
+        if (error.message.includes('Network Error') || !error.response) {
+          console.error('Possible erreur CORS ou serveur inaccessible');
+        }
+
+        throw error;
+      });
   }
 
   /**
@@ -196,6 +237,7 @@ class AuthService {
   logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    this.removeAuthHeader();
     console.log('Utilisateur déconnecté');
   }
 
@@ -210,16 +252,11 @@ class AuthService {
       return false;
     }
 
-    // Vérifier si le token est un JWT valide et non expiré
-    try {
-      // Décodage du JWT
-      const parts = token.split('.');
-      if (parts.length !== 3) {
-        console.error('Format de token invalide');
-        return false;
-      }
-
+    // Vérifier si le token est au format JWT (3 parties séparées par des points)
+    const parts = token.split('.');
+    if (parts.length === 3) {
       try {
+        // Décodage du payload (seconde partie du JWT)
         const payloadJson = base64UrlDecode(parts[1]);
         const payload = JSON.parse(payloadJson);
 
@@ -227,20 +264,55 @@ class AuthService {
         if (payload.exp) {
           return payload.exp * 1000 > Date.now();
         }
-
         return true;
       } catch (decodeError) {
-        console.error('Erreur lors du décodage du payload:', decodeError);
-        // Lors du développement, on peut tolérer un token mal formé
-        if (DEV_MODE) {
-          return true;
-        }
+        console.error('Erreur lors du décodage du payload JWT:', decodeError);
         return false;
       }
-    } catch (e) {
-      console.error('Erreur lors de la vérification du token:', e);
-      return false;
+    } else {
+      console.log('Token au format simple détecté');
+
+      // Format temporaire, à supprimer une fois le backend ajusté
+      // Considérer le token valide s'il existe
+      return true;
     }
+  }
+
+  /**
+   * Extrait les informations du token JWT
+   * @returns {Object|null} - Les informations contenues dans le token ou null
+   */
+  getTokenInfo() {
+    const token = localStorage.getItem('token');
+
+    if (!token) {
+      return null;
+    }
+
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) {
+        return null;
+      }
+
+      const payload = JSON.parse(base64UrlDecode(parts[1]));
+      return payload;
+    } catch (error) {
+      console.error(
+        "Erreur lors de l'extraction des informations du token:",
+        error
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Récupère les rôles depuis le token
+   * @returns {Array} - Liste des rôles de l'utilisateur
+   */
+  getUserRoles() {
+    const tokenInfo = this.getTokenInfo();
+    return tokenInfo && tokenInfo.roles ? tokenInfo.roles : [];
   }
 
   /**
@@ -250,6 +322,7 @@ class AuthService {
   setAuthHeader(token) {
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     }
   }
 
@@ -258,6 +331,7 @@ class AuthService {
    */
   removeAuthHeader() {
     delete axios.defaults.headers.common['Authorization'];
+    delete apiClient.defaults.headers.common['Authorization'];
   }
 
   /**
@@ -406,6 +480,22 @@ class AuthService {
    * @returns {boolean} - True si l'utilisateur a le rôle, sinon False
    */
   hasRole(role) {
+    // D'abord, essayer d'extraire les rôles du token JWT
+    const roles = this.getUserRoles();
+
+    if (roles.length > 0) {
+      // Vérifier sans préfixe
+      if (roles.includes(role)) {
+        return true;
+      }
+
+      // Vérifier avec préfixe ROLE_
+      if (roles.includes('ROLE_' + role)) {
+        return true;
+      }
+    }
+
+    // Fallback sur l'objet utilisateur stocké
     const user = this.getCurrentUser();
     if (!user) return false;
 

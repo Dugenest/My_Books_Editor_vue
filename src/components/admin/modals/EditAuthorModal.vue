@@ -1,3 +1,5 @@
+<!-- src/components/EditAuthorModal.vue -->
+
 <template>
   <div class="modal-overlay" @click.self="$emit('close')">
     <div class="modal-container">

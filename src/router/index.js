@@ -33,13 +33,29 @@ const requireAdmin = (to, from, next) => {
     role: currentUser ? currentUser.role : 'aucun',
   });
 
+  // Code de débogage pour vérifier le rôle
+  console.log(
+    'Test de rôle:',
+    currentUser && currentUser.role,
+    currentUser && currentUser.role === 'ADMIN',
+    currentUser && currentUser.role === 'admin',
+    currentUser && currentUser.role === 'ROLE_ADMIN',
+    currentUser && currentUser.role === 'ROLE_admin'
+  );
+
   if (!AuthService.isAuthenticated()) {
     console.log('Non authentifié, redirection vers login');
     next({
       name: 'Login',
       query: { redirect: to.fullPath },
     });
-  } else if (currentUser && currentUser.role === 'ADMIN') {
+  } else if (
+    currentUser &&
+    (currentUser.role.toUpperCase() === 'ADMIN' ||
+      currentUser.role.toLowerCase() === 'admin' ||
+      currentUser.role === 'ROLE_admin' ||
+      currentUser.role === 'ROLE_ADMIN')
+  ) {
     console.log('Utilisateur ADMIN, accès autorisé');
     next();
   } else {
@@ -173,6 +189,12 @@ const router = createRouter({
       return { top: 0 };
     }
   },
+});
+
+// Ajout d'un hook global pour déboguer les redirections
+router.beforeEach((to, from, next) => {
+  console.log(`Navigation de ${from.path} vers ${to.path}`);
+  next();
 });
 
 // Mise à jour du titre de la page

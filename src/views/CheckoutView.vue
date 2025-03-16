@@ -17,37 +17,37 @@
             <div class="step-number">
               <i v-if="index < currentStep" class="fas fa-check"></i>
               <span v-else>{{ index + 1 }}</span>
-      </div>
+            </div>
             <span class="step-label">{{ step.label }}</span>
-      </div>
-    </div>
+          </div>
+        </div>
 
         <!-- Étape 1: Adresse de livraison -->
         <div v-if="currentStep === 0" class="step-content">
           <h2>Adresse de livraison</h2>
           <form @submit.prevent="nextStep" class="address-form">
-          <div class="form-row">
-            <div class="form-group">
-              <label for="firstName">Prénom</label>
-              <input
-                type="text"
-                id="firstName"
+            <div class="form-row">
+              <div class="form-group">
+                <label for="firstName">Prénom</label>
+                <input
+                  type="text"
+                  id="firstName"
                   v-model="shippingAddress.firstName"
-                required
-              />
-            </div>
-            <div class="form-group">
-              <label for="lastName">Nom</label>
-              <input
-                type="text"
-                id="lastName"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label for="lastName">Nom</label>
+                <input
+                  type="text"
+                  id="lastName"
                   v-model="shippingAddress.lastName"
-                required
-              />
+                  required
+                />
+              </div>
             </div>
-          </div>
 
-          <div class="form-group">
+            <div class="form-group">
               <label for="address">Adresse</label>
               <input
                 type="text"
@@ -55,27 +55,27 @@
                 v-model="shippingAddress.address"
                 required
               />
-          </div>
+            </div>
 
             <div class="form-row">
-          <div class="form-group">
+              <div class="form-group">
                 <label for="postalCode">Code postal</label>
-            <input
-              type="text"
+                <input
+                  type="text"
                   id="postalCode"
                   v-model="shippingAddress.postalCode"
-              required
+                  required
                   pattern="[0-9]{5}"
-            />
-          </div>
-            <div class="form-group">
-              <label for="city">Ville</label>
-              <input
-                type="text"
-                id="city"
+                />
+              </div>
+              <div class="form-group">
+                <label for="city">Ville</label>
+                <input
+                  type="text"
+                  id="city"
                   v-model="shippingAddress.city"
-                required
-              />
+                  required
+                />
               </div>
             </div>
 
@@ -87,7 +87,7 @@
                 v-model="shippingAddress.phone"
                 required
               />
-          </div>
+            </div>
 
             <div class="form-actions">
               <router-link to="/basket" class="btn-secondary">
@@ -96,7 +96,7 @@
               <button type="submit" class="btn-primary">Continuer</button>
             </div>
           </form>
-          </div>
+        </div>
 
         <!-- Étape 2: Mode de livraison -->
         <div v-if="currentStep === 1" class="step-content">
@@ -119,7 +119,7 @@
                         : 'Gratuit'
                     }}
                   </span>
-              </div>
+                </div>
                 <p class="option-description">{{ option.description }}</p>
                 <p class="delivery-time">
                   <i class="fas fa-clock"></i>
@@ -144,11 +144,11 @@
               Continuer
             </button>
           </div>
-      </div>
+        </div>
 
-      <!-- Étape 3: Paiement -->
+        <!-- Étape 3: Paiement -->
         <div v-if="currentStep === 2" class="step-content">
-        <h2>Paiement</h2>
+          <h2>Paiement</h2>
           <div class="payment-methods">
             <div
               v-for="method in paymentMethods"
@@ -179,13 +179,13 @@
             class="card-form"
           >
             <div class="form-row">
-            <div class="form-group">
-              <label for="cardNumber">Numéro de carte</label>
-              <input
-                type="text"
-                id="cardNumber"
+              <div class="form-group">
+                <label for="cardNumber">Numéro de carte</label>
+                <input
+                  type="text"
+                  id="cardNumber"
                   v-model="paymentDetails.cardNumber"
-                required
+                  required
                   pattern="[0-9]{16}"
                   maxlength="16"
                 />
@@ -231,51 +231,51 @@
               <span v-else> Payer {{ formatPrice(total) }} € </span>
             </button>
           </div>
-      </div>
         </div>
+      </div>
 
       <div class="order-summary">
         <h2>Récapitulatif</h2>
 
-      <div class="summary-items">
+        <div class="summary-items">
           <div v-for="item in items" :key="item.id" class="summary-item">
             <img
               :src="item.coverImage"
               :alt="item.title"
               class="item-thumbnail"
             />
-          <div class="item-info">
+            <div class="item-info">
               <span class="item-title">{{ item.title }}</span>
               <span class="item-quantity">Quantité: {{ item.quantity }}</span>
-          </div>
+            </div>
             <span class="item-price"
               >{{ formatPrice(item.price * item.quantity) }} €</span
             >
+          </div>
         </div>
-      </div>
 
         <div class="summary-details">
           <div class="summary-line">
-          <span>Sous-total</span>
+            <span>Sous-total</span>
             <span>{{ formatPrice(subtotal) }} €</span>
-        </div>
+          </div>
           <div class="summary-line">
             <span>TVA (20%)</span>
             <span>{{ formatPrice(tax) }} €</span>
           </div>
           <div class="summary-line">
-          <span>Livraison</span>
+            <span>Livraison</span>
             <span>{{ formatPrice(shippingCost) }} €</span>
-        </div>
+          </div>
           <div v-if="discount" class="summary-line discount">
             <span>Réduction</span>
             <span>-{{ formatPrice(discount) }} €</span>
-        </div>
+          </div>
           <div class="summary-line total">
-          <span>Total</span>
+            <span>Total</span>
             <span>{{ formatPrice(total) }} €</span>
+          </div>
         </div>
-      </div>
       </div>
     </div>
   </div>

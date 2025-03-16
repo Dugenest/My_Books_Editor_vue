@@ -37,6 +37,11 @@
             <input type="email" id="email" v-model="user.email" required />
           </div>
 
+          <div class="form-group">
+            <label for="username">Nom d'utilisateur *</label>
+            <input type="text" id="username" v-model="user.username" required />
+          </div>
+
           <div class="form-row">
             <div class="form-group">
               <label for="password">Mot de passe *</label>
@@ -63,17 +68,40 @@
           </div>
 
           <div class="form-group">
-            <label for="role">Rôle *</label>
-            <select id="role" v-model="user.role" required>
-              <option value="USER">Utilisateur</option>
-              <option value="EDITOR">Éditeur</option>
-              <option value="ADMIN">Administrateur</option>
-            </select>
+            <label for="address">Adresse</label>
+            <textarea
+              id="address"
+              v-model="user.address"
+              rows="3"
+              placeholder="Adresse complète"
+            ></textarea>
           </div>
 
           <div class="form-group">
             <label for="phone">Téléphone</label>
             <input type="tel" id="phone" v-model="user.phone" />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="role">Rôle *</label>
+              <select id="role" v-model="user.role" required>
+                <option value="USER">Utilisateur</option>
+                <option value="EDITOR">Éditeur</option>
+                <option value="ADMIN">Administrateur</option>
+                <option value="AUTHOR">Auteur</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="user_type">Type d'utilisateur *</label>
+              <select id="user_type" v-model="user.user_type" required>
+                <option value="CUSTOMER">Client</option>
+                <option value="STAFF">Personnel</option>
+                <option value="PARTNER">Partenaire</option>
+                <option value="OTHER">Autre</option>
+              </select>
+            </div>
           </div>
 
           <div class="form-group">
@@ -133,9 +161,12 @@ export default {
       firstName: '',
       lastName: '',
       email: '',
+      username: '',
       password: '',
-      role: 'USER',
+      address: '',
       phone: '',
+      role: 'USER',
+      user_type: 'CUSTOMER',
       avatar: null,
       active: true,
       status: 'active', // statut initial
@@ -160,8 +191,11 @@ export default {
         user.value.firstName &&
         user.value.lastName &&
         user.value.email &&
+        user.value.username &&
         user.value.password &&
-        user.value.password === confirmPassword.value
+        user.value.password === confirmPassword.value &&
+        user.value.role &&
+        user.value.user_type
       );
     });
 

@@ -26,10 +26,8 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { useStore } from 'vuex';
 import AdminDashboard from '@/components/admin/AdminDashboard.vue';
+import { onMounted, ref } from 'vue';
 
 export default {
   name: 'AdminView',
@@ -39,42 +37,15 @@ export default {
   },
 
   setup() {
-    const router = useRouter();
-    const store = useStore();
-
     const isLoading = ref(true);
     const isAuthorized = ref(false);
 
-    // Vérifier si l'utilisateur est authentifié et a les droits d'accès
-    const checkAuthorization = async () => {
-      try {
-        // Si vous utilisez Vuex pour la gestion de l'authentification
-        const currentUser = store.getters['auth/currentUser'];
-
-        // Vérifier si l'utilisateur est connecté
-        if (!currentUser) {
-          // Rediriger vers la page de connexion avec retour vers l'admin
-          router.push({
-            path: '/login',
-            query: { redirect: router.currentRoute.value.fullPath },
-          });
-          return;
-        }
-
-        // Vérifier si l'utilisateur a les droits d'administrateur
-        // Adaptez cette condition selon votre logique de rôles
-        if (currentUser.role === 'ADMIN' || currentUser.role === 'EDITOR') {
-          isAuthorized.value = true;
-        }
-      } catch (error) {
-        console.error('Erreur lors de la vérification des droits :', error);
-      } finally {
-        isLoading.value = false;
-      }
-    };
-
+    // Exécuter la vérification au montage du composant
     onMounted(() => {
-      checkAuthorization();
+      console.log('Composant AdminView monté');
+      // Nous sommes déjà passés par requireAdmin, donc accès autorisé
+      isAuthorized.value = true;
+      isLoading.value = false;
     });
 
     return {

@@ -35,6 +35,18 @@
         </div>
 
         <div class="form-group">
+          <label for="username">Nom d'utilisateur</label>
+          <input
+            type="text"
+            id="username"
+            v-model="username"
+            required
+            class="form-control"
+            placeholder="Choisissez un nom d'utilisateur"
+          />
+        </div>
+
+        <div class="form-group">
           <label for="email">Email</label>
           <input
             type="email"
@@ -44,6 +56,48 @@
             class="form-control"
             placeholder="Votre adresse email"
           />
+        </div>
+
+        <div class="form-group">
+          <label for="phone">Téléphone</label>
+          <input
+            type="tel"
+            id="phone"
+            v-model="phone"
+            class="form-control"
+            placeholder="Votre numéro de téléphone"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="address">Adresse</label>
+          <textarea
+            id="address"
+            v-model="address"
+            class="form-control"
+            rows="3"
+            placeholder="Votre adresse complète"
+          ></textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="role">Rôle</label>
+            <select id="role" v-model="role" class="form-control">
+              <option value="USER">Utilisateur</option>
+              <option value="AUTHOR">Auteur</option>
+              <option value="EDITOR">Éditeur</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="user_type">Type d'utilisateur</label>
+            <select id="user_type" v-model="user_type" class="form-control">
+              <option value="CUSTOMER">Client</option>
+              <option value="PARTNER">Partenaire</option>
+              <option value="OTHER">Autre</option>
+            </select>
+          </div>
         </div>
 
         <div class="form-group">
@@ -173,7 +227,12 @@ export default {
     // États
     const firstName = ref('');
     const lastName = ref('');
+    const username = ref('');
     const email = ref('');
+    const phone = ref('');
+    const address = ref('');
+    const role = ref('USER');
+    const user_type = ref('CUSTOMER');
     const password = ref('');
     const confirmPassword = ref('');
     const showPassword = ref(false);
@@ -222,6 +281,7 @@ export default {
       return (
         firstName.value.trim() !== '' &&
         lastName.value.trim() !== '' &&
+        username.value.trim() !== '' &&
         email.value.trim() !== '' &&
         password.value.length >= 8 &&
         password.value === confirmPassword.value &&
@@ -242,18 +302,30 @@ export default {
           await store.dispatch('auth/register', {
             firstName: firstName.value,
             lastName: lastName.value,
+            username: username.value,
             email: email.value,
+            phone: phone.value,
+            address: address.value,
+            role: role.value,
+            user_type: user_type.value,
             password: password.value,
             subscribeNewsletter: subscribeNewsletter.value,
+            active: true,
           });
         } else {
           // Sinon, utilisez directement axios
           await axios.post('http://localhost:8111/api/auth/register', {
             firstName: firstName.value,
             lastName: lastName.value,
+            username: username.value,
             email: email.value,
+            phone: phone.value,
+            address: address.value,
+            role: role.value,
+            user_type: user_type.value,
             password: password.value,
             subscribeNewsletter: subscribeNewsletter.value,
+            active: true,
           });
         }
 
@@ -283,7 +355,12 @@ export default {
     return {
       firstName,
       lastName,
+      username,
       email,
+      phone,
+      address,
+      role,
+      user_type,
       password,
       confirmPassword,
       showPassword,

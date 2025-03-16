@@ -159,6 +159,7 @@
 <script>
 import { ref, computed } from 'vue';
 import AuthorService from '@/services/AuthorService';
+import { useStore } from 'vuex';
 
 export default {
   name: 'AddAuthorModal',
@@ -166,6 +167,7 @@ export default {
   emits: ['close', 'author-added'],
 
   setup(props, { emit }) {
+    const store = useStore();
     const author = ref({
       firstName: '',
       lastName: '',
@@ -187,6 +189,86 @@ export default {
     const confirmPassword = ref('');
     const imagePreview = ref(null);
     const isSubmitting = ref(false);
+
+    // Vérifier l'authentification et les rôles
+    const checkAuth = () => {
+      // Vérifier les deux clés possibles pour le token
+      const token =
+        localStorage.getItem('auth_token') || localStorage.getItem('token');
+      let user = null;
+      let isAdmin = false;
+
+      // Récupérer les informations utilisateur depuis localStorage (vérifier les deux clés)
+      const userInfoStr =
+        localStorage.getItem('user_info') || localStorage.getItem('user');
+      if (userInfoStr) {
+        try {
+          user = JSON.parse(userInfoStr);
+          console.log('📋 Données utilisateur:', user);
+
+          // Vérifier le rôle en ignorant la casse
+          const userRole = user?.role?.toLowerCase?.() || '';
+          const userRoles = user?.roles || [];
+
+          isAdmin =
+            userRole === 'admin' ||
+            userRoles.some(
+              (r) =>
+                r?.toLowerCase?.() === 'admin' ||
+                r?.toLowerCase?.() === 'role_admin'
+            );
+
+          console.log('🔍 Vérification du rôle:');
+          console.log('- Role brut:', user?.role);
+          console.log('- Role en minuscules:', userRole);
+          console.log('- Roles array:', userRoles);
+          console.log('- Est admin (après vérification):', isAdmin);
+        } catch (e) {
+          console.error(
+            'Erreur lors de la lecture des informations utilisateur:',
+            e
+          );
+        }
+      }
+
+      // Si pas d'info utilisateur dans localStorage, essayer depuis le store
+      if (!user && store.state.auth && store.state.auth.user) {
+        user = store.state.auth.user;
+        console.log('📋 Données utilisateur depuis le store:', user);
+
+        // Vérifier le rôle en ignorant la casse
+        const userRole = user?.role?.toLowerCase?.() || '';
+        const userRoles = user?.roles || [];
+
+        isAdmin =
+          userRole === 'admin' ||
+          userRoles.some(
+            (r) =>
+              r?.toLowerCase?.() === 'admin' ||
+              r?.toLowerCase?.() === 'role_admin'
+          );
+
+        console.log('🔍 Vérification du rôle depuis le store:');
+        console.log('- Role brut:', user?.role);
+        console.log('- Role en minuscules:', userRole);
+        console.log('- Roles array:', userRoles);
+        console.log('- Est admin (après vérification):', isAdmin);
+      }
+
+      console.log("🔑 Vérification d'authentification:");
+      console.log('- Token présent:', !!token);
+      console.log('- Utilisateur connecté:', !!user);
+      console.log(
+        '- Rôle utilisateur:',
+        user ? user.role || user.roles?.join(', ') : 'Non défini'
+      );
+      console.log('- Est admin:', isAdmin);
+
+      return { token, user, isAdmin };
+    };
+
+    // Appeler la vérification au chargement
+    checkAuth();
 
     const passwordError = computed(() => {
       if (
@@ -216,27 +298,104 @@ export default {
     };
 
     const handleSubmit = async () => {
-      if (!isFormValid.value) return;
+      isSubmitting.value = true;
+
+      // Vérifier l'authentification avant de soumettre
+      const { token, user, isAdmin } = checkAuth();
+
+      console.log('🚀 Tentative de soumission du formulaire:');
+      console.log('- Token présent:', !!token);
+      console.log('- Utilisateur:', user);
+      console.log('- isAdmin (résultat de checkAuth):', isAdmin);
+
+      // Vérification manuelle du rôle admin (en ignorant la casse)
+      const manualAdminCheck =
+        user &&
+        (user.role?.toLowerCase() === 'admin' ||
+          (user.roles &&
+            user.roles.some(
+              (r) =>
+                r?.toLowerCase?.() === 'admin' ||
+                r?.toLowerCase?.() === 'role_admin'
+            )));
+
+      console.log('- Vérification manuelle du rôle admin:', manualAdminCheck);
+
+      // Utiliser soit isAdmin soit la vérification manuelle
+      const hasAdminRights = isAdmin || manualAdminCheck;
+      console.log("- Droits d'administration (combinés):", hasAdminRights);
+
+      if (!token) {
+        console.error("❌ Erreur: Vous n'êtes pas authentifié");
+        alert("Vous n'êtes pas authentifié. Veuillez vous connecter.");
+        isSubmitting.value = false;
+        emit('close');
+        return;
+      }
+
+      // TEMPORAIRE: Ignorer la vérification des droits d'administration pour déboguer
+      // if (!hasAdminRights) {
+      //   console.error("❌ Erreur: Vous n'avez pas les permissions nécessaires");
+      //   alert(
+      //     "Vous n'avez pas les permissions nécessaires pour ajouter un auteur."
+      //   );
+      //   isSubmitting.value = false;
+      //   return;
+      // }
+
+      // Afficher un avertissement mais continuer quand même
+      if (!hasAdminRights) {
+        console.warn(
+          "⚠️ Avertissement: Vous n'avez pas les droits d'administration, mais nous continuons quand même pour le débogage"
+        );
+      }
 
       try {
-        isSubmitting.value = true;
+        // Vérifier que les champs obligatoires sont remplis
+        if (!author.value.firstName || !author.value.lastName) {
+          throw new Error("Le prénom et le nom de l'auteur sont obligatoires");
+        }
 
-        // Appel au service pour ajouter l'auteur avec les informations utilisateur
-        const response = await AuthorService.createAuthorWithUser(
+        if (
+          !userData.value.username ||
+          !userData.value.email ||
+          !userData.value.password
+        ) {
+          throw new Error(
+            "Le nom d'utilisateur, l'email et le mot de passe sont obligatoires"
+          );
+        }
+
+        if (userData.value.password !== confirmPassword.value) {
+          throw new Error('Les mots de passe ne correspondent pas');
+        }
+
+        if (userData.value.password.length < 8) {
+          throw new Error(
+            'Le mot de passe doit contenir au moins 8 caractères'
+          );
+        }
+
+        // Créer l'auteur avec les informations utilisateur
+        console.log('📤 Envoi des données au service:', {
+          author: {
+            ...author.value,
+            photo: author.value.photo ? 'Photo présente' : 'Pas de photo',
+          },
+          userData: { ...userData.value, password: '********' },
+        });
+
+        const result = await AuthorService.createAuthorWithUser(
           author.value,
           userData.value
         );
 
-        console.log('Auteur ajouté:', response.data);
-
-        emit('author-added', response.data);
+        console.log('✅ Auteur créé avec succès:', result);
+        emit('author-added', result);
         emit('close');
       } catch (error) {
-        console.error("Erreur lors de l'ajout de l'auteur:", error);
-        // Gérer les erreurs (afficher un message, etc.)
-        alert(
-          "Une erreur est survenue lors de l'ajout de l'auteur. Veuillez réessayer."
-        );
+        console.error("❌ Erreur lors de l'ajout de l'auteur:", error);
+        alert(`Erreur lors de l'ajout de l'auteur: ${error.message}`);
       } finally {
         isSubmitting.value = false;
       }

@@ -1,0 +1,88 @@
+INSTRUCTIONS POUR TESTER L'API MANUELLEMENT
+=============================================
+
+Pour tester l'ajout d'un auteur et identifier les problèmes d'authentification, suivez ces étapes :
+
+1. RÉCUPÉRER VOTRE TOKEN D'AUTHENTIFICATION
+-------------------------------------------
+a) Ouvrez votre application dans le navigateur
+b) Connectez-vous avec un compte administrateur
+c) Ouvrez les outils de développement (F12)
+d) Allez dans l'onglet "Application" ou "Stockage"
+e) Cliquez sur "Stockage local" dans le menu de gauche
+f) Recherchez la clé "token" ou "auth_token"
+g) Copiez la valeur du token
+
+2. VÉRIFIER L'UTILISATEUR ACTUEL
+--------------------------------
+Exécutez cette commande dans un navigateur moderne (comme Chrome) en remplaçant VOTRE_TOKEN par le token copié :
+
+```javascript
+fetch('http://localhost:8111/api/users/current', {
+  method: 'GET',
+  headers: {
+    'Authorization': 'Bearer VOTRE_TOKEN'
+  }
+})
+.then(response => {
+  console.log('Statut:', response.status);
+  return response.json();
+})
+.then(data => {
+  console.log('Utilisateur connecté:', data);
+})
+.catch(error => {
+  console.error('Erreur:', error);
+});
+```
+
+3. TESTER L'AJOUT D'UN AUTEUR
+-----------------------------
+Exécutez cette commande dans un navigateur moderne en remplaçant VOTRE_TOKEN par le token copié :
+
+```javascript
+fetch('http://localhost:8111/api/authors', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer VOTRE_TOKEN'
+  },
+  body: JSON.stringify({
+    firstName: 'Victor',
+    lastName: 'Hugo',
+    biography: 'Écrivain français du 19e siècle',
+    nationality: 'Française',
+    user: {
+      username: 'vhugo',
+      email: 'victor.hugo@exemple.fr',
+      password: 'motdepasse123',
+      role: 'AUTHOR',
+      active: true
+    }
+  })
+})
+.then(response => {
+  console.log('Statut:', response.status);
+  return response.text().then(text => {
+    try {
+      return text ? JSON.parse(text) : {};
+    } catch (e) {
+      return { text };
+    }
+  });
+})
+.then(data => {
+  console.log('Réponse:', data);
+})
+.catch(error => {
+  console.error('Erreur:', error);
+});
+```
+
+4. VÉRIFIER LES LOGS DU SERVEUR
+------------------------------
+Pendant que vous effectuez ces tests, surveillez les logs du serveur backend pour voir s'il y a des erreurs ou des messages qui pourraient indiquer la cause du problème.
+
+5. VÉRIFIER LES RÔLES ET PERMISSIONS
+----------------------------------
+Assurez-vous que votre compte administrateur a bien les permissions nécessaires pour ajouter un auteur. Vérifiez dans la base de données ou dans les logs que le rôle est correctement défini. 

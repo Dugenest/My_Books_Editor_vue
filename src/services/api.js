@@ -1,74 +1,95 @@
-// src/services/api.js
 import axios from 'axios';
-import router from '@/router'; // Importez votre router
+import router from '@/router';
 
-// URL de l'API avec le port correct
-const API_URL = 'http://localhost:8111'; // URL directe vers le backend
-
-const apiClient = axios.create({
-  baseURL: API_URL,
+const api = axios.create({
+  baseURL: process.env.VUE_APP_API_URL || 'http://localhost:8111/api', // Notez que j'ai changé le port à 8111
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
-    Accept: 'application/json',
   },
-  timeout: 10000,
 });
 
-// Intercepteur pour ajouter le token JWT si nécessaire
-apiClient.interceptors.request.use(
+// Intercepteur pour ajouter le token à chaque requête
+api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    // Vérifier les deux clés possibles pour le token
+    const token =
+      localStorage.getItem('auth_token') ||
+      localStorage.getItem('token') ||
+      sessionStorage.getItem('token');
+
     if (token) {
-      console.log('Token présent, ajout aux headers');
-      config.headers['Authorization'] = `Bearer ${token}`;
+      if (!config.headers) {
+        config.headers = {};
+      }
+      config.headers.Authorization = `Bearer ${token}`;
+      console.log('🔑 Token ajouté à la requête:', config.url);
     } else {
-      console.log('Aucun token trouvé dans localStorage');
+      console.warn('⚠️ Pas de token disponible pour la requête:', config.url);
     }
+
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 // Intercepteur pour gérer les erreurs d'authentification
-apiClient.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  (error) => {
-    // Journaliser les détails de l'erreur pour le débogage
-    console.error('Erreur API:', {
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      url: error.config?.url,
-      method: error.config?.method,
-      data: error.response?.data,
-    });
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
 
-    // Si le serveur répond avec un code 401 (Non autorisé) ou 403 (Interdit)
+    // Log détaillé pour toutes les erreurs
     if (error.response) {
+      console.error(`Erreur ${error.response.status} détaillée:`, {
+        url: originalRequest.url,
+        method: originalRequest.method,
+        headers: originalRequest.headers,
+        data: originalRequest.data,
+        responseData: error.response.data,
+      });
+
+      // Gestion spécifique des erreurs d'authentification
       if (error.response.status === 401) {
-        // Token expiré ou invalide
-        console.warn('Session expirée ou non authentifiée');
+        console.error("Erreur d'authentification: Token invalide ou expiré");
+
+        // Déconnexion et redirection
+        localStorage.removeItem('auth_token');
         localStorage.removeItem('token');
+        localStorage.removeItem('user_info');
         localStorage.removeItem('user');
 
-        // Redirection vers la page de connexion si nous ne sommes pas déjà sur cette page
-        if (router.currentRoute.value.name !== 'Login') {
-          router.push({
-            name: 'Login',
-            query: { redirect: router.currentRoute.value.fullPath },
-          });
+        // Rediriger vers la page de connexion
+        if (router && router.currentRoute) {
+          router.push(
+            '/login?redirect=' +
+              router.currentRoute.value.fullPath +
+              '&error=session_expired'
+          );
+        } else {
+          window.location.href = '/login?error=session_expired';
         }
-      } else if (error.response.status === 403) {
-        console.warn('Accès refusé (403 Forbidden)');
-        // Ne pas rediriger automatiquement, mais informer l'utilisateur du problème d'accès
+
+        return Promise.reject(
+          new Error('Session expirée. Veuillez vous reconnecter.')
+        );
       }
+
+      // Gestion des erreurs d'autorisation
+      if (error.response.status === 403) {
+        console.error("Erreur d'autorisation: Permissions insuffisantes");
+        return Promise.reject(
+          new Error(
+            "Vous n'avez pas les permissions nécessaires pour effectuer cette action."
+          )
+        );
+      }
+    } else {
+      console.error('Erreur réseau:', error.message);
     }
 
     return Promise.reject(error);
   }
 );
 
-export default apiClient;
+export default api;

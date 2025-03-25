@@ -92,16 +92,6 @@
                 <option value="AUTHOR">Auteur</option>
               </select>
             </div>
-
-            <div class="form-group">
-              <label for="user_type">Type d'utilisateur *</label>
-              <select id="user_type" v-model="user.user_type" required>
-                <option value="CUSTOMER">Client</option>
-                <option value="STAFF">Personnel</option>
-                <option value="PARTNER">Partenaire</option>
-                <option value="OTHER">Autre</option>
-              </select>
-            </div>
           </div>
 
           <div class="form-group">
@@ -150,6 +140,7 @@
 
 <script>
 import { ref, computed } from 'vue';
+import UserService from '@/services/UserService';
 
 export default {
   name: 'AddUserModal',
@@ -166,7 +157,6 @@ export default {
       address: '',
       phone: '',
       role: 'USER',
-      user_type: 'CUSTOMER',
       avatar: null,
       active: true,
       status: 'active', // statut initial
@@ -194,8 +184,7 @@ export default {
         user.value.username &&
         user.value.password &&
         user.value.password === confirmPassword.value &&
-        user.value.role &&
-        user.value.user_type
+        user.value.role
       );
     });
 
@@ -214,28 +203,26 @@ export default {
         isSubmitting.value = true;
 
         // Création d'un objet utilisateur complet
-        // Le nom complet est automatiquement généré à partir du prénom et nom
-        const fullUser = {
+        const userData = {
           ...user.value,
-          name: `${user.value.firstName} ${user.value.lastName}`,
-          id: Date.now(), // simulé, normalement généré par le backend
-          lastLogin: null,
+          first_name: user.value.firstName,
+          last_name: user.value.lastName,
+          subscribed_to_newsletter: false,
         };
 
-        // Simulation d'appel API
-        // En production, on appellerait un service ou une API pour créer l'utilisateur
-        // await userService.addUser(fullUser);
+        console.log('Tentative de création utilisateur:', userData);
 
-        console.log('Utilisateur ajouté:', fullUser);
+        // Appel au service pour créer l'utilisateur
+        const response = await UserService.create(userData);
+        console.log('Utilisateur créé avec succès:', response.data);
 
-        // Simuler un délai pour l'enregistrement
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-
-        emit('user-added', fullUser);
+        emit('user-added', response.data);
         emit('close');
       } catch (error) {
         console.error("Erreur lors de l'ajout de l'utilisateur:", error);
-        // Gérer les erreurs (afficher un message, etc.)
+        alert(
+          "Une erreur est survenue lors de la création de l'utilisateur. Veuillez réessayer."
+        );
       } finally {
         isSubmitting.value = false;
       }

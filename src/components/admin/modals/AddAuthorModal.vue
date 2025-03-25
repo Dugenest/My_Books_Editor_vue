@@ -65,6 +65,56 @@
             />
           </div>
 
+          <!-- Ajout du sélecteur d'éditeur -->
+          <div class="form-group">
+            <label for="editor">Éditeur</label>
+            <select id="editor" v-model="author.editorId">
+              <option value="">-- Sélectionner un éditeur --</option>
+              <option
+                v-for="editor in editors"
+                :key="editor.id"
+                :value="editor.id"
+              >
+                {{ editor.companyId }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Ajout du sélecteur de catégories -->
+          <div class="form-group">
+            <label for="categories">Catégories</label>
+            <select id="categories" v-model="author.categoryIds" multiple>
+              <option
+                v-for="category in categories"
+                :key="category.id"
+                :value="category.id"
+              >
+                {{ category.name }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Ajout des champs adresse et téléphone -->
+          <div class="form-group">
+            <label for="address">Adresse</label>
+            <textarea
+              id="address"
+              v-model="userData.address"
+              rows="2"
+              placeholder="Adresse complète"
+            ></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="phone">Téléphone</label>
+            <input
+              type="tel"
+              id="phone"
+              v-model="userData.phone"
+              placeholder="Ex: +33 6 12 34 56 78"
+            />
+          </div>
+
           <div class="form-group">
             <label for="photo">Photo</label>
             <div class="file-upload">
@@ -157,8 +207,10 @@
 </template>
 
 <script>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import AuthorService from '@/services/AuthorService';
+import CategoryService from '@/services/CategoryService';
+import EditorService from '@/services/EditorService';
 import { useStore } from 'vuex';
 
 export default {
@@ -176,6 +228,8 @@ export default {
       nationality: '',
       website: '',
       photo: null,
+      editorId: '',
+      categoryIds: [],
     });
 
     const userData = ref({
@@ -184,11 +238,56 @@ export default {
       password: '',
       role: 'AUTHOR',
       active: true,
+      address: '',
+      phone: '',
     });
 
     const confirmPassword = ref('');
     const imagePreview = ref(null);
     const isSubmitting = ref(false);
+    const categories = ref([]);
+    const editors = ref([]);
+
+    // Chargement des catégories
+    const loadCategories = async () => {
+      try {
+        console.log('Chargement des catégories...');
+        // Utilise le CategoryService modifié qui retourne directement le tableau
+        const categoriesData = await CategoryService.getCategories();
+        categories.value = categoriesData.map((cat) => ({
+          ...cat,
+          books: cat.books || [],
+          icon: cat.icon || 'fas fa-book',
+          color: cat.color || 'blue',
+        }));
+        console.log('Catégories chargées:', categories.value);
+      } catch (error) {
+        console.error('Erreur lors du chargement des catégories:', error);
+        categories.value = [];
+      }
+    };
+
+    // Chargement des éditeurs
+    const loadEditors = async () => {
+      try {
+        console.log('Chargement des éditeurs...');
+        const response = await EditorService.getEditors();
+        // Vérifiez la structure de la réponse et ajustez selon le besoin
+        editors.value = Array.isArray(response)
+          ? response
+          : response.data?.content || response.data || [];
+        console.log('Éditeurs chargés:', editors.value);
+      } catch (error) {
+        console.error('Erreur lors du chargement des éditeurs:', error);
+        editors.value = [];
+      }
+    };
+
+    // Chargement des données au montage du composant
+    onMounted(() => {
+      loadCategories();
+      loadEditors();
+    });
 
     // Vérifier l'authentification et les rôles
     const checkAuth = () => {
@@ -411,6 +510,8 @@ export default {
       isSubmitting,
       handleImageUpload,
       handleSubmit,
+      categories,
+      editors,
     };
   },
 };

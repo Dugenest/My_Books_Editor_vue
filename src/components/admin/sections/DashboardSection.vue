@@ -30,29 +30,6 @@
       </div>
 
       <div class="stat-card">
-        <div class="stat-icon revenue">
-          <i class="fas fa-euro-sign"></i>
-        </div>
-        <div class="stat-info">
-          <h3>Revenus</h3>
-          <p class="stat-value">{{ formatPrice(stats.totalRevenue) }}</p>
-          <p
-            class="stat-change"
-            :class="stats.revenueChange >= 0 ? 'positive' : 'negative'"
-          >
-            <i
-              :class="
-                stats.revenueChange >= 0
-                  ? 'fas fa-arrow-up'
-                  : 'fas fa-arrow-down'
-              "
-            ></i>
-            {{ Math.abs(stats.revenueChange) }}% ce mois
-          </p>
-        </div>
-      </div>
-
-      <div class="stat-card">
         <div class="stat-icon users">
           <i class="fas fa-users"></i>
         </div>
@@ -81,6 +58,56 @@
           <h3>Livres</h3>
           <p class="stat-value">{{ stats.totalBooks }}</p>
           <p class="stat-change">{{ stats.outOfStock }} en rupture de stock</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon authors">
+          <i class="fas fa-user-edit"></i>
+        </div>
+        <div class="stat-info">
+          <h3>Auteurs</h3>
+          <p class="stat-value">{{ stats.totalAuthors || 0 }}</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon editors">
+          <i class="fas fa-building"></i>
+        </div>
+        <div class="stat-info">
+          <h3>Éditeurs</h3>
+          <p class="stat-value">{{ stats.totalEditors || 0 }}</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon categories">
+          <i class="fas fa-tags"></i>
+        </div>
+        <div class="stat-info">
+          <h3>Catégories</h3>
+          <p class="stat-value">{{ stats.totalCategories || 0 }}</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon series">
+          <i class="fas fa-layer-group"></i>
+        </div>
+        <div class="stat-info">
+          <h3>Séries</h3>
+          <p class="stat-value">{{ stats.totalSeries || 0 }}</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon comments">
+          <i class="fas fa-comments"></i>
+        </div>
+        <div class="stat-info">
+          <h3>Commentaires</h3>
+          <p class="stat-value">{{ stats.totalComments || 0 }}</p>
         </div>
       </div>
     </div>
@@ -201,6 +228,31 @@ export default {
 .stat-icon.books {
   background-color: #f3e5f5;
   color: #7b1fa2;
+}
+
+.stat-icon.authors {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.stat-icon.editors {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.stat-icon.categories {
+  background-color: #fff3e0;
+  color: #e65100;
+}
+
+.stat-icon.series {
+  background-color: #f3e5f5;
+  color: #7b1fa2;
+}
+
+.stat-icon.comments {
+  background-color: #e3f2fd;
+  color: #1976d2;
 }
 
 .stat-info h3 {

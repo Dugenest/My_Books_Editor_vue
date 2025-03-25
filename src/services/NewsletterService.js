@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-const API_URL = 'http://localhost:8111/api';
+import api from './api';
 
 class NewsletterService {
   /**
@@ -9,7 +7,7 @@ class NewsletterService {
    * @returns {Promise} - Promesse contenant la réponse du serveur
    */
   subscribe(email) {
-    return axios.post(`${API_URL}/newsletter/subscribe`, { email });
+    return api.post('/newsletter/subscribe', { email });
   }
 
   /**
@@ -19,7 +17,7 @@ class NewsletterService {
    * @returns {Promise} - Promesse contenant la réponse du serveur
    */
   unsubscribe(email, token) {
-    return axios.post(`${API_URL}/newsletter/unsubscribe`, { email, token });
+    return api.post('/newsletter/unsubscribe', { email, token });
   }
 
   /**
@@ -28,7 +26,7 @@ class NewsletterService {
    * @returns {Promise} - Promesse contenant le statut d'inscription
    */
   checkSubscription(email) {
-    return axios.get(`${API_URL}/newsletter/check`, {
+    return api.get('/newsletter/check', {
       params: { email },
     });
   }
@@ -40,7 +38,7 @@ class NewsletterService {
    * @returns {Promise} - Promesse contenant la réponse du serveur
    */
   updatePreferences(email, preferences) {
-    return axios.put(`${API_URL}/newsletter/preferences`, {
+    return api.put('/newsletter/preferences', {
       email,
       preferences,
     });

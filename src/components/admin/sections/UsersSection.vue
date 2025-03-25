@@ -27,6 +27,7 @@
         <option value="ADMIN">Administrateur</option>
         <option value="USER">Utilisateur</option>
         <option value="EDITOR">Éditeur</option>
+        <option value="AUTHOR">Auteur</option>
       </select>
 
       <select v-model="localUserFilters.status" @change="applyFilters">
@@ -49,25 +50,41 @@
               />
             </th>
             <th>Avatar</th>
-            <th @click="sortData('name')">
+            <th @click="sortData('registration_date')">
+              Date d'enregistrement
+              <i class="fas" :class="getSortIcon('registration_date')"></i>
+            </th>
+            <th @click="sortData('username')">
+              Nom d'utilisateur
+              <i class="fas" :class="getSortIcon('username')"></i>
+            </th>
+            <th @click="sortData('firstName')">
+              Prénom
+              <i class="fas" :class="getSortIcon('firstName')"></i>
+            </th>
+            <th @click="sortData('lastName')">
               Nom
-              <i class="fas" :class="getSortIcon('name')"></i>
+              <i class="fas" :class="getSortIcon('lastName')"></i>
             </th>
             <th @click="sortData('email')">
               Email
               <i class="fas" :class="getSortIcon('email')"></i>
             </th>
+            <th @click="sortData('phone')">
+              Téléphone
+              <i class="fas" :class="getSortIcon('phone')"></i>
+            </th>
+            <th @click="sortData('address')">
+              Adresse
+              <i class="fas" :class="getSortIcon('address')"></i>
+            </th>
             <th @click="sortData('role')">
               Rôle
               <i class="fas" :class="getSortIcon('role')"></i>
             </th>
-            <th @click="sortData('status')">
+            <th @click="sortData('active')">
               Statut
-              <i class="fas" :class="getSortIcon('status')"></i>
-            </th>
-            <th @click="sortData('lastLogin')">
-              Dernière connexion
-              <i class="fas" :class="getSortIcon('lastLogin')"></i>
+              <i class="fas" :class="getSortIcon('active')"></i>
             </th>
             <th>Actions</th>
           </tr>
@@ -85,23 +102,32 @@
             <td>
               <img
                 :src="user.avatar || '/default-avatar.png'"
-                :alt="user.name"
+                :alt="user.username"
                 class="user-avatar"
               />
             </td>
-            <td>{{ user.name }}</td>
+            <td>
+              {{ formatDate(user.registration_date || user.registrationDate) }}
+            </td>
+            <td>{{ user.username }}</td>
+            <td>{{ user.firstName }}</td>
+            <td>{{ user.lastName }}</td>
             <td>{{ user.email }}</td>
+            <td>{{ user.phone || '-' }}</td>
+            <td>{{ user.address || '-' }}</td>
             <td>
               <span class="role-badge" :class="user.role.toLowerCase()">
                 {{ user.role }}
               </span>
             </td>
             <td>
-              <span class="status-badge" :class="user.status">
-                {{ getUserStatus(user.status) }}
+              <span
+                class="status-badge"
+                :class="user.active ? 'active' : 'inactive'"
+              >
+                {{ user.active ? 'Actif' : 'Inactif' }}
               </span>
             </td>
-            <td>{{ formatDate(user.lastLogin) }}</td>
             <td>
               <div class="action-buttons">
                 <button
@@ -114,13 +140,9 @@
                 <button
                   class="btn-icon"
                   @click="$emit('toggle-status', user)"
-                  :title="user.status === 'active' ? 'Désactiver' : 'Activer'"
+                  :title="user.active ? 'Désactiver' : 'Activer'"
                 >
-                  <i
-                    :class="
-                      user.status === 'active' ? 'fas fa-ban' : 'fas fa-check'
-                    "
-                  ></i>
+                  <i :class="user.active ? 'fas fa-ban' : 'fas fa-check'"></i>
                 </button>
                 <button
                   class="btn-icon delete"
@@ -133,7 +155,7 @@
             </td>
           </tr>
           <tr v-if="users.length === 0">
-            <td colspan="8" class="no-data">Aucun utilisateur trouvé</td>
+            <td colspan="11" class="no-data">Aucun utilisateur trouvé</td>
           </tr>
         </tbody>
       </table>
@@ -396,7 +418,7 @@ export default {
 }
 
 .role-badge.editor {
-  background-color: #e3f2fd;
+  background-color: #f5f5f5;
   color: #1976d2;
 }
 
@@ -417,8 +439,8 @@ export default {
 }
 
 .status-badge.inactive {
-  background-color: #f5f5f5;
-  color: #666;
+  background-color: #ffebee;
+  color: #d32f2f;
 }
 
 .status-badge.blocked {

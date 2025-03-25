@@ -4,11 +4,15 @@
       <!-- Logo et nom du site -->
       <div class="site-brand">
         <router-link to="/" class="brand-link">
-          <img
-            src="@/assets/images/MyBooks.png"
-            alt="My Books Editor"
-            class="site-logo"
-          />
+          <div class="logo-container">
+            <img
+              src="@/assets/images/MyBooks.png"
+              alt="My Books Editor"
+              class="site-logo"
+              @error="onLogoError"
+            />
+            <i v-if="logoError" class="fas fa-book-open site-logo-fallback"></i>
+          </div>
           <span class="site-name">MyBooksEditor</span>
         </router-link>
       </div>
@@ -26,6 +30,9 @@
           </li>
           <li class="nav-item">
             <router-link to="/authors" class="nav-link">Auteurs</router-link>
+          </li>
+          <li class="nav-item">
+            <router-link to="/series" class="nav-link">Séries</router-link>
           </li>
           <li class="nav-item">
             <router-link to="/new-releases" class="nav-link"
@@ -71,11 +78,12 @@
             <div v-else>
               <div class="cart-items">
                 <div v-for="item in cartItems" :key="item.id" class="cart-item">
-                  <img
-                    :src="item.coverImage || '/assets/default-book-cover.png'"
-                    :alt="item.title"
-                    class="item-image"
-                  />
+                  <div v-if="item.coverImage" class="item-image">
+                    <img :src="item.coverImage" :alt="item.title" />
+                  </div>
+                  <div v-else class="item-image-placeholder">
+                    <i class="fas fa-book"></i>
+                  </div>
                   <div class="item-details">
                     <div class="item-title">{{ item.title }}</div>
                     <div class="item-quantity-price">
@@ -131,6 +139,14 @@
                 <router-link to="/wishlist" class="dropdown-link">
                   <i class="fas fa-heart"></i> Ma liste d'envies
                 </router-link>
+                <!-- Option pour les administrateurs -->
+                <router-link
+                  v-if="isAdmin"
+                  to="/admin/settings"
+                  class="dropdown-link"
+                >
+                  <i class="fas fa-cog"></i> Paramètres du site
+                </router-link>
                 <a href="#" @click.prevent="logout" class="dropdown-link">
                   <i class="fas fa-sign-out-alt"></i> Déconnexion
                 </a>
@@ -146,15 +162,15 @@
         </div>
 
         <!-- Menu mobile -->
-        <button class="mobile-menu-button" @click="toggleMobileMenu">
-          <i class="fas fa-bars"></i>
+        <button class="mobile-menu-toggle" @click="toggleMobileMenu">
+          <i :class="[showMobileMenu ? 'fa-times' : 'fa-bars', 'fas']"></i>
         </button>
       </div>
     </div>
 
     <!-- Menu mobile -->
     <div v-show="showMobileMenu" class="mobile-menu">
-      <nav class="mobile-nav">
+      <nav :class="['mobile-nav', showMobileMenu ? 'active' : '']">
         <ul class="mobile-nav-list">
           <li class="mobile-nav-item">
             <router-link
@@ -178,6 +194,14 @@
               class="mobile-nav-link"
               @click="showMobileMenu = false"
               >Auteurs</router-link
+            >
+          </li>
+          <li class="mobile-nav-item">
+            <router-link
+              to="/series"
+              class="mobile-nav-link"
+              @click="showMobileMenu = false"
+              >Séries</router-link
             >
           </li>
           <li class="mobile-nav-item">
@@ -208,6 +232,13 @@
               >
             </router-link>
           </li>
+
+          <!-- Séparateur pour les utilisateurs connectés -->
+          <li v-if="isAuthenticated" class="mobile-nav-separator">
+            <div class="separator-line"></div>
+            <div class="separator-text">Mon compte</div>
+          </li>
+
           <li v-if="isAuthenticated" class="mobile-nav-item">
             <router-link
               to="/profile"
@@ -224,25 +255,17 @@
               >Mes commandes</router-link
             >
           </li>
+          <li v-if="isAuthenticated && isAdmin" class="mobile-nav-item">
+            <router-link
+              to="/admin/settings"
+              class="mobile-nav-link"
+              @click="showMobileMenu = false"
+              >Paramètres du site</router-link
+            >
+          </li>
           <li v-if="isAuthenticated" class="mobile-nav-item">
             <a href="#" @click.prevent="logout" class="mobile-nav-link"
               >Déconnexion</a
-            >
-          </li>
-          <li v-if="!isAuthenticated" class="mobile-nav-item">
-            <router-link
-              to="/login"
-              class="mobile-nav-link"
-              @click="showMobileMenu = false"
-              >Connexion</router-link
-            >
-          </li>
-          <li v-else class="mobile-nav-item">
-            <router-link
-              to="/register"
-              class="mobile-nav-link"
-              @click="showMobileMenu = false"
-              >Inscription</router-link
             >
           </li>
         </ul>
@@ -268,11 +291,11 @@ export default {
     const showCartDropdown = ref(false);
     const showUserDropdown = ref(false);
     const showMobileMenu = ref(false);
+    const logoError = ref(false);
 
     // Propriétés calculées
-    const isAuthenticated = computed(
-      () => store.getters['auth/isAuthenticated']
-    );
+    const isAuthenticated = computed(() => store.getters['auth/isLoggedIn']);
+    const isAdmin = computed(() => store.getters['auth/hasRole']('ADMIN'));
     const userName = computed(() => {
       const user = store.getters['auth/currentUser'];
       return user ? `${user.firstName} ${user.lastName}` : '';
@@ -343,6 +366,10 @@ export default {
       }
     };
 
+    const onLogoError = () => {
+      logoError.value = true;
+    };
+
     // Observateurs
     watch(showCartDropdown, (newVal) => {
       if (newVal) {
@@ -376,6 +403,7 @@ export default {
       showUserDropdown,
       showMobileMenu,
       isAuthenticated,
+      isAdmin,
       userName,
       userEmail,
       cartItems,
@@ -388,6 +416,8 @@ export default {
       removeItem,
       logout,
       formatPrice,
+      logoError,
+      onLogoError,
     };
   },
 };
@@ -403,7 +433,7 @@ export default {
 }
 
 .header-container {
-  max-width: 1200px;
+  max-width: auto;
   margin: 0 auto;
   padding: 0 20px;
   height: 70px;
@@ -425,9 +455,25 @@ export default {
   color: #333;
 }
 
-.site-logo {
+.logo-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
   height: 40px;
   margin-right: 10px;
+}
+
+.site-logo {
+  max-width: 100%;
+  max-height: 100%;
+  height: auto;
+}
+
+.site-logo-fallback {
+  font-size: 1.8rem;
+  color: #3f51b5;
 }
 
 .site-name {
@@ -748,7 +794,7 @@ export default {
 }
 
 /* Menu mobile */
-.mobile-menu-button {
+.mobile-menu-toggle {
   display: none;
   background: none;
   border: none;
@@ -763,6 +809,14 @@ export default {
   background-color: white;
   padding: 15px;
   box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+}
+
+.mobile-nav {
+  display: none;
+}
+
+.mobile-nav.active {
+  display: block;
 }
 
 .mobile-nav-list {
@@ -794,13 +848,32 @@ export default {
   font-weight: bold;
 }
 
+/* Styles pour le séparateur du menu mobile */
+.mobile-nav-separator {
+  margin: 15px 0;
+  position: relative;
+}
+
+.separator-line {
+  height: 1px;
+  background-color: #eee;
+  margin: 5px 0;
+}
+
+.separator-text {
+  color: #999;
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin: 5px 0;
+}
+
 /* Responsive */
 @media (max-width: 992px) {
   .main-nav {
     display: none;
   }
 
-  .mobile-menu-button {
+  .mobile-menu-toggle {
     display: block;
   }
 
@@ -834,5 +907,21 @@ export default {
   .site-name {
     font-size: 1.2rem;
   }
+}
+
+.item-image-placeholder {
+  width: 50px;
+  height: 70px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  margin-right: 10px;
+  color: #6c757d;
+}
+
+.item-image-placeholder i {
+  font-size: 1.5rem;
 }
 </style>

@@ -2,11 +2,12 @@ import axios from 'axios';
 import router from '@/router';
 
 const api = axios.create({
-  baseURL: process.env.VUE_APP_API_URL || 'http://localhost:8111/api', // Notez que j'ai changé le port à 8111
+  baseURL: 'http://localhost:8080/api',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
 
 // Intercepteur pour ajouter le token à chaque requête

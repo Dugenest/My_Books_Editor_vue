@@ -1,15 +1,13 @@
 // src/services/CommentService.js
-import axios from 'axios';
-
-const API_URL = 'http://localhost:8111/api';
+import api from './api';
 
 class CommentService {
   getCommentsByBookId(bookId) {
-    return axios.get(`${API_URL}/books/${bookId}/comments`);
+    return api.get(`/books/${bookId}/comments`);
   }
 
   addComment(commentData) {
-    return axios.post(`${API_URL}/comments`, commentData);
+    return api.post('/comments', commentData);
   }
 }
 

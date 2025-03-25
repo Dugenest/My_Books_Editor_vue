@@ -1,6 +1,6 @@
 // src/services/AuthorService.js
 
-import axios from 'axios';
+import apiClient from './api';
 
 // Gestion du token d'authentification
 const AuthInterceptor = {
@@ -88,14 +88,8 @@ const AuthInterceptor = {
 
 class AuthorService {
   constructor() {
-    // Configuration de l'instance Axios
-    this.api = axios.create({
-      baseURL: process.env.VUE_APP_API_BASE_URL || 'http://localhost:8111/api',
-      timeout: 10000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    // Configuration de l'instance API
+    this.api = apiClient;
 
     // Ajouter les intercepteurs
     this.api.interceptors.request.use(
@@ -118,264 +112,26 @@ class AuthorService {
 
   // Récupérer tous les auteurs
   async getAuthors(params = {}) {
-    /* eslint-disable */
     try {
-      console.log('🔍 Tentative de récupération des auteurs avec params:', params);
-      
-      /**
-       * NOTE IMPORTANTE: Le backend renvoie une erreur 403 lors de la sérialisation JSON des auteurs.
-       * 
-       * Problème côté serveur: "Could not write JSON: failed to lazily initialize a collection of role: 
-       * com.afci.data.Author.authoredBooks: could not initialize proxy - no Session"
-       * 
-       * Cette erreur est due à la façon dont JPA/Hibernate gère les relations lazy-loaded.
-       * La collection authoredBooks n'est pas initialisée avant la fermeture de la session Hibernate,
-       * ce qui provoque cette erreur lors de la sérialisation JSON.
-       * 
-       * Solutions possibles côté serveur:
-       * 1. Utiliser @JsonIgnore sur la propriété authoredBooks
-       * 2. Configurer un DTO (Data Transfer Object) sans la collection
-       * 3. Utiliser FetchType.EAGER au lieu de LAZY
-       * 4. Initialiser explicitement la collection avant de fermer la session
-       * 
-       * En attendant, nous utilisons des données fictives comme solution de contournement.
-       */
-      
-      // Essayer d'utiliser l'API standard d'abord
-      try {
-        // Récupérer le token manuellement
-        const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
-        
-        if (!token) {
-          console.warn('⚠️ Pas de token disponible pour la requête getAuthors');
-          throw new Error('Pas de token disponible');
-        }
-        
-        console.log('🔑 Token trouvé pour getAuthors:', token.substring(0, 15) + '...');
-        
-        // Créer une instance axios spécifique pour cette requête
-        const axiosInstance = axios.create({
-          baseURL: process.env.VUE_APP_API_BASE_URL || 'http://localhost:8111/api',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        console.log('🔍 Tentative de requête GET /authors avec axios');
-        
-        // Faire la requête avec l'instance spécifique
-        const response = await axiosInstance.get('/authors', { params });
-        
-        console.log('✅ Données des auteurs récupérées avec succès:', response.data);
-        
-        // Transformer les données pour correspondre au format attendu par le composant
-        if (response.data && Array.isArray(response.data.content)) {
-          // Afficher la structure complète des données pour le débogage
-          console.log('🔍 Structure complète des données reçues:', JSON.stringify(response.data, null, 2));
-          
-          // Transformer chaque auteur pour s'assurer que les propriétés nécessaires sont présentes
-          const transformedAuthors = response.data.content.map(author => {
-            // Log détaillé de chaque auteur
-            console.log('🔍 Auteur brut:', JSON.stringify(author, null, 2));
-            
-            // Extraire les données en fonction de la structure réelle
-            let firstName = '';
-            let lastName = '';
-            let nationality = '';
-            let email = '';
-            let username = '';
-            let address = '';
-            let phone = '';
-            let biography = '';
-            let birthDate = '';
-            
-            // Cas 1: Structure avec user_id et user
-            if (author.user_id && typeof author.user_id === 'number') {
-              // L'auteur a un user_id, donc c'est probablement un objet Author avec une référence User
-              nationality = author.nationality || '';
-              biography = author.biography || '';
-              birthDate = author.birthDate || author.birth_date || '';
-              
-              // Vérifier si l'objet user est présent
-              if (author.user) {
-                firstName = author.user.firstName || author.user.first_name || '';
-                lastName = author.user.lastName || author.user.last_name || '';
-                email = author.user.email || '';
-                username = author.user.username || '';
-                address = author.user.address || '';
-                phone = author.user.phone || '';
-              }
-            } 
-            // Cas 2: Structure avec id et propriétés directes
-            else if (author.id) {
-              firstName = author.firstName || author.first_name || '';
-              lastName = author.lastName || author.last_name || '';
-              nationality = author.nationality || '';
-              email = author.email || '';
-              username = author.username || '';
-              address = author.address || '';
-              phone = author.phone || '';
-              biography = author.biography || '';
-              birthDate = author.birthDate || author.birth_date || '';
-            }
-            
-            // Créer l'objet transformé
-            const transformedAuthor = {
-              id: author.id || author.user_id,
-              firstName: firstName,
-              lastName: lastName,
-              nationality: nationality,
-              biography: biography,
-              birthDate: birthDate,
-              email: email,
-              username: username,
-              address: address,
-              phone: phone
-            };
-            
-            console.log('✅ Auteur transformé:', transformedAuthor);
-            
-            return transformedAuthor;
-          });
-          
-          console.log('✅ Données transformées pour l\'affichage:', transformedAuthors);
-          
-          // Retourner les données dans le format attendu
-          return {
-            data: {
-              content: transformedAuthors,
-              totalPages: response.data.totalPages || 1,
-              totalElements: response.data.totalElements || transformedAuthors.length,
-              size: response.data.size || 10,
-              number: response.data.number || 0
-            }
-          };
-        }
-        
-        return response;
-      } catch (apiError) {
-        console.error('❌ Erreur lors de la requête API:', apiError);
-        
-        // Vérifier si l'erreur est liée à un problème de sérialisation JSON
-        if (apiError.response && apiError.response.status === 403) {
-          console.warn('⚠️ Erreur 403 - Problème d\'autorisation ou de sérialisation JSON');
-          console.warn('⚠️ Les logs du serveur indiquent un problème de sérialisation: "Could not write JSON: failed to lazily initialize a collection of role: com.afci.data.Author.authoredBooks: could not initialize proxy - no Session"');
-          console.warn('⚠️ Ce problème doit être résolu côté serveur en modifiant la configuration JPA pour gérer correctement les relations lazy loading');
-        }
-        
-        console.log('⚠️ Utilisation des données fictives comme solution de secours');
-        
-        // Créer des données fictives pour l'interface
-        const mockAuthors = [
-          {
-            id: 1,
-            firstName: 'Victor',
-            lastName: 'Hugo',
-            nationality: 'Française',
-            biography: 'Écrivain, poète, homme politique français',
-            birthDate: '1802-02-26'
-          },
-          {
-            id: 2,
-            firstName: 'Albert',
-            lastName: 'Camus',
-            nationality: 'Française',
-            biography: 'Écrivain, philosophe, romancier, dramaturge',
-            birthDate: '1913-11-07'
-          },
-          {
-            id: 3,
-            firstName: 'Simone',
-            lastName: 'de Beauvoir',
-            nationality: 'Française',
-            biography: 'Philosophe, romancière, mémorialiste et essayiste',
-            birthDate: '1908-01-09'
-          },
-          {
-            id: 4,
-            firstName: 'Marcel',
-            lastName: 'Proust',
-            nationality: 'Française',
-            biography: 'Écrivain, critique et essayiste français',
-            birthDate: '1871-07-10'
-          },
-          {
-            id: 5,
-            firstName: 'Émile',
-            lastName: 'Zola',
-            nationality: 'Française',
-            biography: 'Écrivain et journaliste français',
-            birthDate: '1840-04-02'
-          }
-        ];
-        
-        // Filtrer les auteurs selon les paramètres
-        let filteredAuthors = [...mockAuthors];
-        
-        // Filtrer par recherche si spécifié
-        if (params.search) {
-          const searchLower = params.search.toLowerCase();
-          filteredAuthors = filteredAuthors.filter(author => 
-            author.firstName.toLowerCase().includes(searchLower) || 
-            author.lastName.toLowerCase().includes(searchLower) ||
-            author.nationality.toLowerCase().includes(searchLower)
-          );
-        }
-        
-        // Trier les auteurs si spécifié
-        if (params.sort) {
-          const [field, direction] = params.sort.split(',');
-          filteredAuthors.sort((a, b) => {
-            if (direction === 'asc') {
-              return a[field] > b[field] ? 1 : -1;
-            } else {
-              return a[field] < b[field] ? 1 : -1;
-            }
-          });
-        }
-        
-        // Pagination
-        const page = parseInt(params.page) || 0;
-        const size = parseInt(params.size) || 10;
-        const totalElements = filteredAuthors.length;
-        const totalPages = Math.ceil(totalElements / size);
-        
-        // Extraire la page demandée
-        const startIndex = page * size;
-        const endIndex = startIndex + size;
-        const paginatedAuthors = filteredAuthors.slice(startIndex, endIndex);
-        
-        // Construire la réponse
-        const mockResponse = {
-          content: paginatedAuthors,
-          totalPages: totalPages,
-          totalElements: totalElements,
-          size: size,
-          number: page
-        };
-        
-        console.log('✅ Données fictives des auteurs générées:', mockResponse);
-        
-        return { data: mockResponse };
-      }
+      console.log(
+        '🔍 Tentative de récupération des auteurs avec params:',
+        params
+      );
+      const response = await this.api.get('/authors', { params });
+      console.log(
+        '✅ Données des auteurs récupérées avec succès:',
+        response.data
+      );
+      return response;
     } catch (error) {
       console.error('❌ Erreur lors de la récupération des auteurs:', error);
-      console.error('Message d\'erreur:', error.message);
-      console.error('Stack trace:', error.stack);
-      
-      // Retourner un format compatible même en cas d'erreur
-      return {
-        data: {
-          content: [],
-          totalPages: 0,
-          totalElements: 0,
-          size: 10,
-          number: 0
-        }
-      };
+      console.error('Message:', error.message);
+      console.error('Status:', error.response?.status);
+      console.error('Data:', error.response?.data);
+
+      // Retourner une réponse vide pour éviter de bloquer l'interface
+      return { data: { content: [], totalElements: 0, totalPages: 1 } };
     }
-    /* eslint-enable */
   }
 
   async resetPassword(authorId, passwordData) {
@@ -394,138 +150,66 @@ class AuthorService {
     }
   }
 
-  /**
-   * Crée un nouvel auteur avec un compte utilisateur associé
-   * @param {Object} authorData - Données de l'auteur
-   * @param {Object} userData - Données de l'utilisateur
-   * @returns {Promise<Object>} - Promesse contenant les données de l'auteur créé
-   */
+  // Récupérer un auteur par son ID
+  async getAuthorById(authorId) {
+    try {
+      const response = await this.api.get(`/authors/${authorId}`);
+      return response;
+    } catch (error) {
+      console.error("❌ Erreur lors de la récupération de l'auteur:", error);
+      throw error;
+    }
+  }
+
+  // Créer un nouvel auteur
   async createAuthorWithUser(authorData, userData) {
     try {
-      // Vérifier l'authentification
-      const token =
-        localStorage.getItem('auth_token') || localStorage.getItem('token');
-      if (!token) {
-        throw new Error(
-          "Vous n'êtes pas authentifié. Veuillez vous connecter."
-        );
-      }
-      console.log("🔑 Token d'authentification présent:", !!token);
-      console.log(
-        '🔑 Token (premiers caractères):',
-        token.substring(0, 15) + '...'
-      );
-
-      // Récupérer les informations utilisateur
-      const userInfoStr =
-        localStorage.getItem('user_info') || localStorage.getItem('user');
-      let userInfo = null;
-      if (userInfoStr) {
-        try {
-          userInfo = JSON.parse(userInfoStr);
-          console.log('👤 Informations utilisateur connecté:', {
-            id: userInfo.id,
-            username: userInfo.username,
-            role: userInfo.role,
-            roles: userInfo.roles,
-          });
-        } catch (e) {
-          console.error(
-            'Erreur lors de la lecture des informations utilisateur:',
-            e
-          );
-        }
-      }
-
-      // Nettoyer les données
-      const cleanedAuthorData = this.cleanAuthorData(authorData);
-      const cleanedUserData = this.cleanUserData(userData);
-
-      console.log('📝 Données nettoyées:');
-      console.log('- Auteur:', cleanedAuthorData);
-      console.log('- Utilisateur:', {
-        ...cleanedUserData,
-        password: '********',
+      const response = await this.api.post('/authors', {
+        ...authorData,
+        user: userData,
       });
-
-      // Valider les données
-      this.validateAuthorData(cleanedAuthorData);
-      this.validateUserData(cleanedUserData);
-
-      /* eslint-disable prettier/prettier */
-      // Préparer les données à envoyer - format simplifié
-      const dataToSend = {
-        firstName: cleanedAuthorData.firstName,
-        lastName: cleanedAuthorData.lastName,
-        biography: cleanedAuthorData.biography || '',
-        nationality: cleanedAuthorData.nationality || '',
-        birthDate: cleanedAuthorData.birthDate || null,
-        username: cleanedUserData.username,
-        email: cleanedUserData.email,
-        password: cleanedUserData.password,
-        role: cleanedUserData.role || 'AUTHOR',
-        active:
-          cleanedUserData.active !== undefined ? cleanedUserData.active : true,
-      };
-
-      // Envoyer la requête avec le token explicite
-      console.log('🚀 Envoi de la requête avec les données:', {
-        ...dataToSend,
-        password: '********',
-      });
-      /* eslint-enable prettier/prettier */
-
-      // Utiliser directement fetch pour avoir plus de contrôle
-      const response = await fetch(`${this.api.defaults.baseURL}/authors`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(dataToSend),
-      });
-
-      // Vérifier le statut de la réponse
-      console.log('📊 Statut de la réponse:', response.status);
-
-      // Récupérer le corps de la réponse
-      const responseText = await response.text();
-      console.log('📄 Réponse brute:', responseText);
-
-      // Convertir en JSON si possible
-      let responseData;
-      try {
-        responseData = responseText ? JSON.parse(responseText) : {};
-      } catch (e) {
-        console.error('❌ Erreur lors du parsing de la réponse:', e);
-        responseData = { text: responseText };
-      }
-
-      // Vérifier si la réponse est un succès
-      if (response.ok) {
-        console.log('✅ Auteur créé avec succès:', responseData);
-        return responseData;
-      } else {
-        console.error(
-          "❌ Erreur lors de la création de l'auteur:",
-          responseData
-        );
-        throw new Error(
-          responseData.message ||
-            `Erreur ${response.status}: ${response.statusText}`
-        );
-      }
+      return response;
     } catch (error) {
       console.error("❌ Erreur lors de la création de l'auteur:", error);
-      console.error("Type d'erreur:", error.name);
-      console.error("Message d'erreur:", error.message);
-      console.error('Stack trace:', error.stack);
+      throw error;
+    }
+  }
 
-      if (error.response) {
-        console.error('Statut de la réponse:', error.response.status);
-        console.error('Données de la réponse:', error.response.data);
-      }
+  // Mettre à jour un auteur
+  async updateAuthor(authorId, authorData, userData = {}) {
+    try {
+      const response = await this.api.put(`/authors/${authorId}`, {
+        ...authorData,
+        user: userData,
+      });
+      return response;
+    } catch (error) {
+      console.error("❌ Erreur lors de la mise à jour de l'auteur:", error);
+      throw error;
+    }
+  }
 
+  // Supprimer un auteur
+  async deleteAuthor(authorId) {
+    try {
+      const response = await this.api.delete(`/authors/${authorId}`);
+      return response;
+    } catch (error) {
+      console.error("❌ Erreur lors de la suppression de l'auteur:", error);
+      throw error;
+    }
+  }
+
+  // Récupérer les livres d'un auteur
+  async getAuthorBooks(authorId) {
+    try {
+      const response = await this.api.get(`/authors/${authorId}/books`);
+      return response;
+    } catch (error) {
+      console.error(
+        "❌ Erreur lors de la récupération des livres de l'auteur:",
+        error
+      );
       throw error;
     }
   }
@@ -547,9 +231,21 @@ class AuthorService {
       const birthDate = new Date(cleaned.birthDate);
       if (!isNaN(birthDate.getTime())) {
         cleaned.birthDate = birthDate.toISOString().split('T')[0];
+        // Ajouter également birth_date pour compatibilité avec le backend
+        cleaned.birth_date = cleaned.birthDate;
       } else {
         delete cleaned.birthDate;
+        delete cleaned.birth_date;
       }
+    }
+
+    // Ajouter les versions snake_case pour compatibilité avec le backend
+    if (cleaned.firstName) {
+      cleaned.first_name = cleaned.firstName;
+    }
+
+    if (cleaned.lastName) {
+      cleaned.last_name = cleaned.lastName;
     }
 
     // Supprimer les champs vides
@@ -708,10 +404,22 @@ class AuthorService {
       const response = await this.api.post('/auth/login', credentials);
       console.log('✅ Réponse de connexion reçue:', response.data);
 
-      // Stocker le token dans localStorage avec les deux clés possibles pour compatibilité
+      // Vérifier que le token est au format JWT valide (contient 2 points)
       if (response.data.token) {
-        localStorage.setItem('auth_token', response.data.token);
-        localStorage.setItem('token', response.data.token); // Pour compatibilité avec api.js
+        const token = response.data.token;
+
+        // Vérifier le format du token JWT
+        if (token.split('.').length !== 3) {
+          console.error('❌ Format de token invalide:', token);
+          console.error(
+            'Un token JWT valide doit contenir exactement 2 points (3 parties)'
+          );
+          return Promise.reject(new Error('Format de token invalide'));
+        }
+
+        console.log('✅ Token JWT valide reçu');
+        localStorage.setItem('auth_token', token);
+        localStorage.setItem('token', token); // Pour compatibilité avec api.js
         console.log(
           '✅ Token stocké dans localStorage sous deux clés: auth_token et token'
         );
@@ -797,6 +505,202 @@ class AuthorService {
   // Méthode de déconnexion
   logout() {
     AuthInterceptor.logout();
+  }
+
+  /**
+   * Supprime plusieurs auteurs en une seule opération
+   * @param {Array<number>} authorIds - Tableau des IDs des auteurs à supprimer
+   * @returns {Promise<Object>} - Promesse contenant le résultat de l'opération
+   */
+  async bulkDeleteAuthors(authorIds) {
+    try {
+      // Vérifier l'authentification
+      const token =
+        localStorage.getItem('auth_token') || localStorage.getItem('token');
+      if (!token) {
+        throw new Error(
+          "Vous n'êtes pas authentifié. Veuillez vous connecter."
+        );
+      }
+
+      console.log(
+        `🗑️ Tentative de suppression en masse des auteurs:`,
+        authorIds
+      );
+      // Vérifier si les auteurs ont des livres associés
+      const authorsWithBooks = [];
+      for (const authorId of authorIds) {
+        try {
+          const authorDetails = await this.getAuthorById(authorId);
+          if (authorDetails.books && authorDetails.books.length > 0) {
+            authorsWithBooks.push(authorId);
+          }
+          console.log(
+            `📚 Vérification des associations pour l'auteur ${authorId}:`,
+            authorDetails
+          );
+        } catch (detailsError) {
+          console.warn(
+            `⚠️ Impossible de vérifier les détails de l'auteur ${authorId}: ${detailsError.message}`
+          );
+        }
+      }
+
+      // Envoyer la requête avec le token explicite
+      const response = await fetch(
+        `${this.api.defaults.baseURL}/authors/bulk-delete`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ ids: authorIds }),
+        }
+      );
+
+      // Vérifier le statut de la réponse
+      console.log(
+        '📊 Statut de la réponse de suppression en masse:',
+        response.status
+      );
+
+      // Si la réponse est un succès
+      if (response.ok) {
+        const responseText = await response.text();
+        let responseData = {};
+
+        try {
+          responseData = responseText ? JSON.parse(responseText) : {};
+        } catch (e) {
+          responseData = { message: responseText || 'Suppression réussie' };
+        }
+
+        console.log(`✅ ${authorIds.length} auteurs supprimés avec succès`);
+        return responseData;
+      } else {
+        const errorText = await response.text();
+        console.error('❌ Erreur lors de la suppression en masse:', errorText);
+
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch (e) {
+          errorData = { message: errorText };
+        }
+
+        // Vérifier si l'erreur est liée à une contrainte de clé étrangère
+        if (
+          response.status === 400 ||
+          response.status === 403 ||
+          errorText.includes('basket_id') ||
+          errorText.includes('SQLSyntaxErrorException') ||
+          errorText.includes('constraint')
+        ) {
+          console.error('❌ Erreur de contrainte de base de données détectée');
+
+          // Message d'erreur plus convivial pour l'utilisateur
+          const userFriendlyMessage =
+            "Impossible de supprimer certains auteurs car ils possèdent des livres ou d'autres éléments associés. " +
+            "Veuillez d'abord supprimer ces éléments ou contacter l'administrateur système.";
+
+          const enhancedError = new Error(userFriendlyMessage);
+          enhancedError.originalError =
+            errorData.message ||
+            `Erreur ${response.status}: ${response.statusText}`;
+          enhancedError.technicalDetails =
+            'Erreur SQL: Problème de relation dans la base de données';
+          throw enhancedError;
+        }
+
+        throw new Error(
+          errorData.message ||
+            `Erreur ${response.status}: ${response.statusText}`
+        );
+      }
+    } catch (error) {
+      console.error(
+        '❌ Erreur lors de la suppression en masse des auteurs:',
+        error
+      );
+      console.error("Message d'erreur:", error.message);
+
+      // Afficher un message d'erreur convivial à l'utilisateur
+      if (error.originalError) {
+        alert(error.message);
+        console.error('Détails techniques:', error.technicalDetails);
+        console.error('Erreur originale:', error.originalError);
+      } else {
+        alert(`Erreur lors de la suppression en masse: ${error.message}`);
+      }
+
+      throw error;
+    }
+  }
+
+  /**
+   * Vérifie si un auteur a des livres ou d'autres éléments associés
+   * @param {number} authorId - ID de l'auteur à vérifier
+   * @returns {Promise<boolean>} - Promesse indiquant si l'auteur a des associations
+   */
+  async checkAuthorAssociations(authorId) {
+    try {
+      console.log(`🔍 Vérification des associations pour l'auteur ${authorId}`);
+
+      // Récupérer le token
+      const token =
+        localStorage.getItem('auth_token') || localStorage.getItem('token');
+      if (!token) {
+        throw new Error(
+          "Vous n'êtes pas authentifié. Veuillez vous connecter."
+        );
+      }
+
+      // Faire une requête pour vérifier les livres associés
+      const response = await fetch(
+        `${this.api.defaults.baseURL}/authors/${authorId}/books`,
+        {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      // Si la requête échoue, considérer qu'il n'y a pas d'associations
+      if (!response.ok) {
+        console.warn(
+          `⚠️ Impossible de vérifier les livres de l'auteur ${authorId}: ${response.status}`
+        );
+        return false;
+      }
+
+      // Analyser la réponse
+      const responseText = await response.text();
+      let books = [];
+
+      try {
+        const data = responseText ? JSON.parse(responseText) : {};
+        books = data.content || [];
+      } catch (e) {
+        console.error('❌ Erreur lors du parsing de la réponse:', e);
+      }
+
+      const hasBooks = books.length > 0;
+      console.log(
+        `📚 L'auteur ${authorId} a ${books.length} livres associés:`,
+        hasBooks
+      );
+
+      return hasBooks;
+    } catch (error) {
+      console.error(
+        `❌ Erreur lors de la vérification des associations pour l'auteur ${authorId}:`,
+        error
+      );
+      // En cas d'erreur, supposer qu'il n'y a pas d'associations pour éviter de bloquer la suppression
+      return false;
+    }
   }
 }
 

@@ -95,22 +95,8 @@
           </div>
 
           <div class="form-group">
-            <label for="color">Couleur (optionnel)</label>
+            <label for="color">Couleur</label>
             <input type="color" id="color" v-model="category.color" />
-          </div>
-
-          <div class="form-group">
-            <label for="parent">Catégorie parente (optionnel)</label>
-            <select id="parent" v-model="category.parentId">
-              <option value="">Aucune (catégorie principale)</option>
-              <option
-                v-for="cat in availableParentCategories"
-                :key="cat.id"
-                :value="cat.id"
-              >
-                {{ cat.name }}
-              </option>
-            </select>
           </div>
 
           <div class="form-actions">
@@ -129,6 +115,7 @@
 
 <script>
 import { ref } from 'vue';
+import CategoryService from '@/services/CategoryService';
 
 export default {
   name: 'AddCategoryModal',
@@ -141,44 +128,64 @@ export default {
       description: '',
       icon: 'fas fa-book',
       color: '#3f51b5',
-      parentId: '',
       booksCount: 0,
       activeBooks: 0,
     });
 
     const isSubmitting = ref(false);
 
-    // Simulation des catégories disponibles pour sélection comme parent
-    const availableParentCategories = ref([
-      { id: 1, name: 'Romans' },
-      { id: 2, name: 'Livres académiques' },
-      { id: 3, name: 'Littérature étrangère' },
-    ]);
-
     const handleSubmit = async () => {
       try {
         isSubmitting.value = true;
 
-        // Simulation d'appel API
-        // En production, on appellerait un service ou une API pour créer la catégorie
-        // await categoryService.addCategory(category.value);
+        // Validation des données avant envoi
+        if (!category.value.name || category.value.name.trim() === '') {
+          throw new Error('Le nom de la catégorie est obligatoire');
+        }
 
-        console.log('Catégorie ajoutée:', category.value);
-
-        // Simuler un délai pour l'enregistrement
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-
-        // Ajouter un ID à la catégorie (normalement généré par le backend)
-        const newCategory = {
-          ...category.value,
-          id: Date.now(),
+        // Préparation des données pour l'API
+        const categoryData = {
+          name: String(category.value.name).trim(),
+          description: String(category.value.description || '').trim(),
+          icon: String(category.value.icon || 'fas fa-book'),
+          color: String(category.value.color || '#3f51b5'),
         };
 
-        emit('category-added', newCategory);
+        console.log('Données de catégorie envoyées :', categoryData);
+
+        // Appel à l'API pour créer la catégorie
+        const response = await CategoryService.addCategory(categoryData);
+        console.log('Catégorie ajoutée avec succès:', response.data);
+
+        emit('category-added', response.data);
         emit('close');
       } catch (error) {
         console.error("Erreur lors de l'ajout de la catégorie:", error);
-        // Gérer les erreurs (afficher un message, etc.)
+        // Affichage détaillé de l'erreur pour le débogage
+        if (error.response) {
+          console.error("Détails de l'erreur:", {
+            status: error.response.status,
+            statusText: error.response.statusText,
+            data: error.response.data,
+            headers: error.response.headers,
+          });
+        }
+
+        // Message d'erreur plus détaillé
+        let errorMessage = "Erreur lors de l'ajout de la catégorie";
+        if (error.response && error.response.data) {
+          if (typeof error.response.data === 'string') {
+            errorMessage += ': ' + error.response.data;
+          } else if (error.response.data.message) {
+            errorMessage += ': ' + error.response.data.message;
+          } else if (error.response.data.error) {
+            errorMessage += ': ' + error.response.data.error;
+          }
+        } else {
+          errorMessage += ': ' + error.message;
+        }
+
+        alert(errorMessage);
       } finally {
         isSubmitting.value = false;
       }
@@ -186,7 +193,6 @@ export default {
 
     return {
       category,
-      availableParentCategories,
       isSubmitting,
       handleSubmit,
     };

@@ -6,7 +6,9 @@
 
     <div v-if="!loading && !error" class="profile-content">
       <div class="profile-header">
-        <h1>Mon Profil</h1>
+        <h1>
+          Profil de {{ profileData.firstName }} {{ profileData.lastName }}
+        </h1>
       </div>
 
       <!-- Tabs de navigation -->
@@ -39,132 +41,135 @@
         <!-- Tab Informations Personnelles -->
         <div v-if="activeTab === 'info'" class="profile-info">
           <div class="info-section">
-            <h2>Informations personnelles</h2>
+            <div class="section-header">
+              <h3>Coordonnées</h3>
+              <button
+                v-if="!editMode"
+                @click="editMode = true"
+                class="btn-edit"
+              >
+                <i class="fas fa-edit"></i> Modifier les informations
+              </button>
+            </div>
 
             <form @submit.prevent="updateProfile" class="profile-form">
-              <div class="form-group">
-                <label for="username">Nom d'utilisateur</label>
-                <input
-                  type="text"
-                  id="username"
-                  v-model="profileData.username"
-                  :disabled="!editMode"
-                  required
-                />
-              </div>
-
-              <div class="form-row">
+              <div class="form-section">
                 <div class="form-group">
-                  <label for="firstName">Prénom</label>
+                  <label for="username">Nom d'utilisateur</label>
                   <input
                     type="text"
-                    id="firstName"
-                    v-model="profileData.firstName"
+                    id="username"
+                    v-model="profileData.username"
+                    :disabled="!editMode"
+                    required
+                  />
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="firstName">Prénom</label>
+                    <input
+                      type="text"
+                      id="firstName"
+                      v-model="profileData.firstName"
+                      :disabled="!editMode"
+                      required
+                    />
+                  </div>
+
+                  <div class="form-group">
+                    <label for="lastName">Nom</label>
+                    <input
+                      type="text"
+                      id="lastName"
+                      v-model="profileData.lastName"
+                      :disabled="!editMode"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="email">Email</label>
+                  <input
+                    type="email"
+                    id="email"
+                    v-model="profileData.email"
                     :disabled="!editMode"
                     required
                   />
                 </div>
 
                 <div class="form-group">
-                  <label for="lastName">Nom</label>
+                  <label for="phone">Téléphone</label>
                   <input
-                    type="text"
-                    id="lastName"
-                    v-model="profileData.lastName"
+                    type="tel"
+                    id="phone"
+                    v-model="profileData.phone"
                     :disabled="!editMode"
-                    required
                   />
                 </div>
               </div>
 
-              <div class="form-group">
-                <label for="email">Email</label>
-                <input
-                  type="email"
-                  id="email"
-                  v-model="profileData.email"
-                  :disabled="!editMode"
-                  required
-                />
-              </div>
-
-              <div class="form-group">
-                <label for="phone">Téléphone</label>
-                <input
-                  type="tel"
-                  id="phone"
-                  v-model="profileData.phone"
-                  :disabled="!editMode"
-                />
-              </div>
-
-              <h3>Adresse</h3>
-
-              <div class="form-group">
-                <label for="street">Rue</label>
-                <input
-                  type="text"
-                  id="street"
-                  v-model="profileData.address.street"
-                  :disabled="!editMode"
-                />
-              </div>
-
-              <div class="form-row">
+              <div class="form-section">
+                <div class="section-header">
+                  <h3>Adresse</h3>
+                </div>
                 <div class="form-group">
-                  <label for="city">Ville</label>
+                  <label for="street">Rue</label>
                   <input
                     type="text"
-                    id="city"
-                    v-model="profileData.address.city"
+                    id="street"
+                    v-model="profileData.address.street"
                     :disabled="!editMode"
                   />
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="city">Ville</label>
+                    <input
+                      type="text"
+                      id="city"
+                      v-model="profileData.address.city"
+                      :disabled="!editMode"
+                    />
+                  </div>
+
+                  <div class="form-group">
+                    <label for="postalCode">Code postal</label>
+                    <input
+                      type="text"
+                      id="postalCode"
+                      v-model="profileData.address.postalCode"
+                      :disabled="!editMode"
+                    />
+                  </div>
                 </div>
 
                 <div class="form-group">
-                  <label for="postalCode">Code postal</label>
+                  <label for="country">Pays</label>
                   <input
                     type="text"
-                    id="postalCode"
-                    v-model="profileData.address.postalCode"
+                    id="country"
+                    v-model="profileData.address.country"
                     :disabled="!editMode"
                   />
                 </div>
               </div>
 
-              <div class="form-group">
-                <label for="country">Pays</label>
-                <input
-                  type="text"
-                  id="country"
-                  v-model="profileData.address.country"
-                  :disabled="!editMode"
-                />
-              </div>
-
-              <div class="form-actions">
-                <button
-                  v-if="!editMode"
-                  type="button"
-                  @click="editMode = true"
-                  class="btn-edit"
-                >
-                  Modifier
+              <div class="form-actions" v-if="editMode">
+                <button type="submit" class="btn-save" :disabled="submitting">
+                  {{ submitting ? 'Enregistrement...' : 'Enregistrer' }}
                 </button>
-
-                <template v-else>
-                  <button type="submit" class="btn-save" :disabled="submitting">
-                    {{ submitting ? 'Enregistrement...' : 'Enregistrer' }}
-                  </button>
-                  <button
-                    type="button"
-                    @click="cancelEdit"
-                    class="btn-cancel"
-                    :disabled="submitting"
-                  >
-                    Annuler
-                  </button>
-                </template>
+                <button
+                  type="button"
+                  @click="cancelEdit"
+                  class="btn-cancel"
+                  :disabled="submitting"
+                >
+                  Annuler
+                </button>
               </div>
             </form>
           </div>
@@ -212,12 +217,16 @@
                   >
                     <div class="item-image">
                       <img
-                        :src="
-                          item.book.coverImage ||
-                          '/assets/default-book-cover.png'
-                        "
+                        v-if="item.book.coverImage"
+                        :src="item.book.coverImage"
                         :alt="item.book.title"
                       />
+                      <div v-else class="book-placeholder">
+                        <i class="fas fa-book"></i>
+                        <span class="book-title-small">{{
+                          item.book.title
+                        }}</span>
+                      </div>
                     </div>
                     <div class="item-details">
                       <h4>{{ item.book.title }}</h4>
@@ -760,12 +769,27 @@ export default {
   max-width: 1000px;
   margin: 0 auto;
   padding: 20px;
+  position: relative;
+  z-index: 1;
+  margin-top: 80px;
+}
+
+.profile-header {
+  position: relative;
+  z-index: 1;
+  background-color: white;
+  padding: 30px 0;
+  margin-bottom: 30px;
+  border-bottom: 2px solid #eee;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .profile-header h1 {
   text-align: center;
-  margin-bottom: 30px;
+  margin: 0;
   color: #333;
+  font-size: 2.5rem;
+  font-weight: bold;
 }
 
 .loading,
@@ -876,9 +900,48 @@ export default {
 }
 
 .btn-edit {
-  background-color: #f5f5f5;
-  border: 1px solid #ddd;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background-color: #3f51b5;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1.1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.btn-edit:hover {
+  background-color: #303f9f;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn-edit i {
+  font-size: 18px;
+}
+
+.section-header {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.section-header h3 {
+  margin: 0;
   color: #333;
+  font-size: 1.4rem;
+  font-weight: bold;
 }
 
 .btn-save {
@@ -1227,5 +1290,48 @@ export default {
     flex-direction: column;
     gap: 5px;
   }
+}
+
+.book-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: #f5f5f5;
+  color: #6c757d;
+  font-size: 1.5rem;
+  border-radius: 4px;
+}
+
+.book-title-small {
+  font-size: 0.7rem;
+  margin-top: 5px;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  max-width: 100%;
+}
+
+.form-section {
+  background-color: #f9f9f9;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.form-section:last-child {
+  margin-bottom: 0;
+}
+
+.form-section h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #555;
+  font-size: 1.1rem;
 }
 </style>

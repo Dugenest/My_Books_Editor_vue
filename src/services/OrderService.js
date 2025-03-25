@@ -23,7 +23,7 @@ class OrderService {
     // Fusionner les paramètres par défaut avec ceux fournis
     const queryParams = { ...defaultParams, ...params };
 
-    return api.get(`/orders`, {
+    return api.get('/orders', {
       params: queryParams,
     });
   }
@@ -34,7 +34,7 @@ class OrderService {
    * @returns {Promise} - Promesse contenant les données de la commande créée
    */
   createOrder(orderData) {
-    return api.post(`/orders`, orderData);
+    return api.post('/orders', orderData);
   }
 
   /**
@@ -43,13 +43,8 @@ class OrderService {
    * @param {number} size - Nombre d'éléments par page
    * @returns {Promise} - Promesse contenant les commandes de l'utilisateur
    */
-  getUserOrders(page = 1, size = 10) {
-    return api.get(`/orders/user`, {
-      params: {
-        page: page - 1, // L'API attend un index basé sur 0
-        size,
-      },
-    });
+  getUserOrders(userId) {
+    return api.get(`/orders/user/${userId}?page=0&size=10`);
   }
 
   /**
@@ -67,7 +62,7 @@ class OrderService {
    * @returns {Promise} - Promesse contenant la réponse du serveur
    */
   cancelOrder(orderId) {
-    return api.post(`/orders/${orderId}/cancel`);
+    return api.put(`/orders/${orderId}/cancel`);
   }
 
   /**
@@ -76,7 +71,7 @@ class OrderService {
    * @returns {Promise} - Promesse contenant les informations du code promo
    */
   validatePromoCode(code) {
-    return api.post(`/promo-codes/validate`, { code });
+    return api.post('/promo-codes/validate', { code });
   }
 
   /**
@@ -102,7 +97,7 @@ class OrderService {
    * @returns {Promise} - Promesse contenant les statistiques
    */
   getOrderStats() {
-    return api.get(`/admin/orders/stats`);
+    return api.get('/admin/orders/stats');
   }
 
   /**
@@ -113,6 +108,15 @@ class OrderService {
    */
   updateOrderStatus(orderId, status) {
     return api.put(`/admin/orders/${orderId}/status`, { status });
+  }
+
+  /**
+   * Récupère les statistiques des commandes pour un utilisateur spécifique
+   * @param {number} userId - ID de l'utilisateur
+   * @returns {Promise} - Promesse contenant les statistiques de l'utilisateur
+   */
+  getUserStats(userId) {
+    return api.get(`/orders/user/${userId}/stats`);
   }
 }
 

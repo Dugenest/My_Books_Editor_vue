@@ -89,15 +89,6 @@
               <option value="EDITOR">Éditeur</option>
             </select>
           </div>
-
-          <div class="form-group">
-            <label for="user_type">Type d'utilisateur</label>
-            <select id="user_type" v-model="user_type" class="form-control">
-              <option value="CUSTOMER">Client</option>
-              <option value="PARTNER">Partenaire</option>
-              <option value="OTHER">Autre</option>
-            </select>
-          </div>
         </div>
 
         <div class="form-group">
@@ -212,10 +203,10 @@
 </template>
 
 <script>
-import { ref, computed, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStore } from 'vuex'; // Assurez-vous que cette ligne est décommentée
-import axios from 'axios';
+import api from '../services/api';
 
 export default {
   name: 'RegisterView',
@@ -232,7 +223,6 @@ export default {
     const phone = ref('');
     const address = ref('');
     const role = ref('USER');
-    const user_type = ref('CUSTOMER');
     const password = ref('');
     const confirmPassword = ref('');
     const showPassword = ref(false);
@@ -307,14 +297,13 @@ export default {
             phone: phone.value,
             address: address.value,
             role: role.value,
-            user_type: user_type.value,
             password: password.value,
             subscribeNewsletter: subscribeNewsletter.value,
             active: true,
           });
         } else {
-          // Sinon, utilisez directement axios
-          await axios.post('http://localhost:8111/api/auth/register', {
+          // Sinon, utilisez directement l'instance api configurée
+          await api.post('/auth/register', {
             firstName: firstName.value,
             lastName: lastName.value,
             username: username.value,
@@ -322,7 +311,6 @@ export default {
             phone: phone.value,
             address: address.value,
             role: role.value,
-            user_type: user_type.value,
             password: password.value,
             subscribeNewsletter: subscribeNewsletter.value,
             active: true,
@@ -360,7 +348,6 @@ export default {
       phone,
       address,
       role,
-      user_type,
       password,
       confirmPassword,
       showPassword,

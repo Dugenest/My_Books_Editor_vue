@@ -35,10 +35,13 @@
     <div v-if="!loading && !error" class="books-grid">
       <div v-for="book in filteredBooks" :key="book.id" class="book-card">
         <div class="book-image">
-          <img
-            :src="book.coverImage || '/assets/default-book-cover.png'"
-            :alt="book.title"
-          />
+          <div v-if="book.coverImage" class="cover-image-container">
+            <img :src="book.coverImage" :alt="book.title" />
+          </div>
+          <div v-else class="book-cover-placeholder">
+            <i class="fas fa-book"></i>
+            <span class="placeholder-title">{{ book.title }}</span>
+          </div>
         </div>
         <div class="book-info">
           <h3 class="book-title">{{ book.title }}</h3>
@@ -337,5 +340,47 @@ h1 {
 .page-info {
   font-size: 0.9rem;
   color: #666;
+}
+
+.book-cover-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: #f5f5f5;
+  color: #6c757d;
+  padding: 1rem;
+}
+
+.book-cover-placeholder i {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.placeholder-title {
+  font-size: 0.8rem;
+  text-align: center;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.cover-image-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.cover-image-container img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
 }
 </style>

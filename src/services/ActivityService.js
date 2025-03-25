@@ -198,6 +198,11 @@ class ActivityService {
             usersChange: 5.7,
             totalBooks: 512,
             outOfStock: 8,
+            totalCategories: 18,
+            totalAuthors: 45,
+            totalEditors: 12,
+            totalSeries: 24,
+            totalComments: 320,
           };
 
           resolve({ data: mockStats });
@@ -208,7 +213,15 @@ class ActivityService {
     // En mode production, utiliser l'API réelle
     return api
       .get('/dashboard/stats')
-      .then((response) => response.data)
+      .then((response) => {
+        // S'assurer que la réponse est dans un format standardisé
+        if (response.data) {
+          return response.data;
+        } else {
+          // Si la réponse est un objet mais pas dans response.data
+          return { data: response };
+        }
+      })
       .catch((error) => {
         console.error(
           'Erreur lors de la récupération des statistiques:',
@@ -229,7 +242,8 @@ class ActivityService {
           console.error('Erreur', error.message);
         }
 
-        throw error;
+        // Renvoyer un objet vide en cas d'erreur pour éviter des erreurs en cascade
+        return { data: {} };
       });
   }
 }

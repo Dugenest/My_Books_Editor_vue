@@ -1,8 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import HomeView from '@/views/HomeView.vue';
-import LoginView from '../views/LoginView.vue';
 import RegisterView from '../views/RegisterView.vue';
 import AuthService from '@/services/AuthService';
+import SeriesView from '@/views/SeriesView.vue';
+import SeriesDetailsView from '@/views/SeriesDetailsView.vue';
 
 // Garde de route pour les pages nécessitant une authentification
 const requireAuth = (to, from, next) => {
@@ -24,42 +25,54 @@ const requireAuth = (to, from, next) => {
 };
 
 // Garde de route pour les pages nécessitant un rôle administrateur
-const requireAdmin = (to, from, next) => {
-  const currentUser = AuthService.getCurrentUser();
+const requireAdmin = async (to, from, next) => {
+  try {
+    if (!AuthService.isAuthenticated()) {
+      console.log('Non authentifié, redirection vers login');
+      next({
+        name: 'Login',
+        query: { redirect: to.fullPath },
+      });
+      return;
+    }
 
-  console.log('Vérification des permissions admin:', {
-    isAuthenticated: AuthService.isAuthenticated(),
-    user: currentUser,
-    role: currentUser ? currentUser.role : 'aucun',
-  });
+    const response = await AuthService.getCurrentUser();
+    const currentUser = response.data;
 
-  // Code de débogage pour vérifier le rôle
-  console.log(
-    'Test de rôle:',
-    currentUser && currentUser.role,
-    currentUser && currentUser.role === 'ADMIN',
-    currentUser && currentUser.role === 'admin',
-    currentUser && currentUser.role === 'ROLE_ADMIN',
-    currentUser && currentUser.role === 'ROLE_admin'
-  );
-
-  if (!AuthService.isAuthenticated()) {
-    console.log('Non authentifié, redirection vers login');
-    next({
-      name: 'Login',
-      query: { redirect: to.fullPath },
+    console.log('Vérification des permissions admin:', {
+      isAuthenticated: AuthService.isAuthenticated(),
+      user: currentUser,
+      role: currentUser ? currentUser.role : 'aucun',
     });
-  } else if (
-    currentUser &&
-    (currentUser.role.toUpperCase() === 'ADMIN' ||
-      currentUser.role.toLowerCase() === 'admin' ||
-      currentUser.role === 'ROLE_admin' ||
-      currentUser.role === 'ROLE_ADMIN')
-  ) {
-    console.log('Utilisateur ADMIN, accès autorisé');
-    next();
-  } else {
-    console.log('Accès refusé, redirection');
+
+    // Code de débogage pour vérifier le rôle
+    console.log(
+      'Test de rôle:',
+      currentUser && currentUser.role,
+      currentUser && currentUser.role === 'ADMIN',
+      currentUser && currentUser.role === 'admin',
+      currentUser && currentUser.role === 'ROLE_ADMIN',
+      currentUser && currentUser.role === 'ROLE_admin'
+    );
+
+    if (
+      currentUser &&
+      (currentUser.role.toUpperCase() === 'ADMIN' ||
+        currentUser.role.toLowerCase() === 'admin' ||
+        currentUser.role === 'ROLE_admin' ||
+        currentUser.role === 'ROLE_ADMIN')
+    ) {
+      console.log('Utilisateur ADMIN, accès autorisé');
+      next();
+    } else {
+      console.log('Accès refusé, redirection');
+      next({ name: 'AccessDenied' });
+    }
+  } catch (error) {
+    console.error(
+      'Erreur lors de la vérification des permissions admin:',
+      error
+    );
     next({ name: 'AccessDenied' });
   }
 };
@@ -85,23 +98,30 @@ const routes = [
     meta: { title: 'Accueil | MyBooks' },
   },
   {
+    path: '/search',
+    name: 'SearchResults',
+    component: () => import('@/views/SearchResultsView.vue'),
+    props: (route) => ({ query: route.query.q }),
+    meta: {
+      title: 'Résultats de recherche - MyBooks',
+    },
+  },
+  {
     path: '/profile',
     name: 'Profile',
-    component: () => import('@/views/UserProfile.vue'),
+    component: () => import('@/views/ProfileView.vue'),
     beforeEnter: requireAuth,
     meta: {
       title: 'Mon profil | MyBooks',
       requiresAuth: true,
     },
   },
-  // Ajout de la page d'accès refusé
   {
     path: '/access-denied',
     name: 'AccessDenied',
     component: () => import('@/views/AccessDeniedView.vue'),
     meta: { title: 'Accès refusé | MyBooks' },
   },
-  // Ajout de la route pour le tableau de bord administrateur
   {
     path: '/admin',
     name: 'AdminDashboard',
@@ -114,10 +134,15 @@ const routes = [
     },
   },
   {
-    path: '/:pathMatch(.*)*',
-    name: 'NotFound',
-    component: () => import('@/views/NotFound.vue'),
-    meta: { title: 'Page non trouvée | MyBooks' },
+    path: '/admin/settings',
+    name: 'AdminSettings',
+    component: () => import('@/views/AdminView.vue'),
+    beforeEnter: requireAdmin,
+    meta: {
+      title: 'Paramètres du site | MyBooks',
+      requiresAuth: true,
+      requiresAdmin: true,
+    },
   },
   {
     path: '/register-success',
@@ -129,17 +154,10 @@ const routes = [
       requiresGuest: true,
     },
   },
-  // Make sure you have a route definition that looks something like this:
-  {
-    path: '/category/:id', // or whatever path pattern you need
-    name: 'CategoryBooks',
-    component: () => import('../views/CategoryBooks.vue'), // Make sure this component exists
-  },
   {
     path: '/login',
     name: 'Login',
-    component: LoginView,
-    beforeEnter: requireGuest,
+    component: () => import('../views/Login/index.vue'),
     meta: {
       title: 'Connexion - MyBooks',
       requiresGuest: true,
@@ -166,6 +184,23 @@ const routes = [
     },
   },
   {
+    path: '/categories',
+    name: 'Categories',
+    component: () => import('@/views/CategoriesView.vue'),
+    meta: { title: 'Catégories | MyBooks' },
+  },
+  {
+    path: '/category/:id',
+    name: 'CategoryBooks',
+    component: () => import('../views/CategoryBooks.vue'),
+  },
+  {
+    path: '/book/:id',
+    name: 'BookDetails',
+    component: () => import('../views/BookDetailsView.vue'),
+    props: true,
+  },
+  {
     path: '/reset-password/:token',
     name: 'ResetPassword',
     component: () => import('@/views/ResetPasswordView.vue'),
@@ -176,7 +211,34 @@ const routes = [
       requiresGuest: true,
     },
   },
-  // Routes protégées existantes...
+  {
+    path: '/authors',
+    name: 'Authors',
+    component: () => import('@/views/AuthorsView.vue'),
+    meta: { title: 'Auteurs | MyBooks' },
+  },
+  {
+    path: '/author/:id',
+    name: 'AuthorDetails',
+    component: () => import('@/views/AuthorDetailsView.vue'),
+    props: true,
+  },
+  {
+    path: '/series',
+    name: 'Series',
+    component: SeriesView,
+  },
+  {
+    path: '/series/:id',
+    name: 'SeriesDetails',
+    component: SeriesDetailsView,
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: () => import('@/views/NotFound.vue'),
+    meta: { title: 'Page non trouvée | MyBooks' },
+  },
 ];
 
 const router = createRouter({

@@ -142,6 +142,7 @@
 
 <script>
 import { ref, computed, onMounted } from 'vue';
+import CategoryService from '@/services/CategoryService';
 
 export default {
   name: 'EditCategoryModal',
@@ -159,20 +160,10 @@ export default {
     const editedCategory = ref({});
     const isSubmitting = ref(false);
 
-    // Simulation des catégories disponibles pour sélection comme parent
-    const allCategories = ref([
-      { id: 1, name: 'Romans' },
-      { id: 2, name: 'Livres académiques' },
-      { id: 3, name: 'Littérature étrangère' },
-      { id: 4, name: 'Science-Fiction' },
-    ]);
-
     // Filtrer les catégories disponibles comme parent
     // (exclure la catégorie en cours d'édition pour éviter les cycles)
     const filteredParentCategories = computed(() => {
-      return allCategories.value.filter(
-        (cat) => cat.id !== editedCategory.value.id
-      );
+      return []; // À remplacer par une liste réelle de catégories si nécessaire
     });
 
     onMounted(() => {
@@ -184,20 +175,64 @@ export default {
       try {
         isSubmitting.value = true;
 
-        // Simulation d'appel API
-        // En production, on appellerait un service ou une API pour mettre à jour la catégorie
-        // await categoryService.updateCategory(editedCategory.value.id, editedCategory.value);
+        // Validation des données avant envoi
+        if (
+          !editedCategory.value.name ||
+          editedCategory.value.name.trim() === ''
+        ) {
+          throw new Error('Le nom de la catégorie est obligatoire');
+        }
 
-        console.log('Catégorie modifiée:', editedCategory.value);
+        // Préparation des données pour l'API
+        const categoryData = {
+          name: String(editedCategory.value.name).trim(),
+          description: String(editedCategory.value.description || '').trim(),
+          icon: String(editedCategory.value.icon || 'fas fa-book'),
+          color: String(editedCategory.value.color || '#3f51b5'),
+        };
 
-        // Simuler un délai pour l'enregistrement
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        console.log(
+          'Données de catégorie envoyées pour mise à jour :',
+          categoryData
+        );
 
-        emit('category-updated', editedCategory.value);
+        // Appel à l'API pour mettre à jour la catégorie
+        const response = await CategoryService.updateCategory(
+          editedCategory.value.id,
+          categoryData
+        );
+        console.log('Catégorie mise à jour avec succès:', response.data);
+
+        emit('category-updated', response.data);
         emit('close');
       } catch (error) {
         console.error('Erreur lors de la modification de la catégorie:', error);
-        // Gérer les erreurs (afficher un message, etc.)
+
+        // Affichage détaillé de l'erreur pour le débogage
+        if (error.response) {
+          console.error("Détails de l'erreur:", {
+            status: error.response.status,
+            statusText: error.response.statusText,
+            data: error.response.data,
+            headers: error.response.headers,
+          });
+        }
+
+        // Message d'erreur plus détaillé
+        let errorMessage = 'Erreur lors de la modification de la catégorie';
+        if (error.response && error.response.data) {
+          if (typeof error.response.data === 'string') {
+            errorMessage += ': ' + error.response.data;
+          } else if (error.response.data.message) {
+            errorMessage += ': ' + error.response.data.message;
+          } else if (error.response.data.error) {
+            errorMessage += ': ' + error.response.data.error;
+          }
+        } else {
+          errorMessage += ': ' + error.message;
+        }
+
+        alert(errorMessage);
       } finally {
         isSubmitting.value = false;
       }

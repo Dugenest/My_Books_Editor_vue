@@ -72,6 +72,65 @@
           </div>
 
           <div class="form-group">
+            <label for="address">Adresse</label>
+            <textarea
+              id="address"
+              v-model="authorData.address"
+              rows="2"
+              placeholder="Adresse complète..."
+            ></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="phone">Téléphone</label>
+              <input
+                type="tel"
+                id="phone"
+                v-model="authorData.phone"
+                placeholder="Numéro de téléphone..."
+              />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="username">Nom d'utilisateur *</label>
+              <input
+                type="text"
+                id="username"
+                v-model="authorData.username"
+                required
+                placeholder="Nom d'utilisateur..."
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="email">Email *</label>
+              <input
+                type="email"
+                id="email"
+                v-model="authorData.email"
+                required
+                placeholder="email@exemple.com"
+              />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="password">Nouveau mot de passe</label>
+            <input
+              type="password"
+              id="password"
+              v-model="authorData.password"
+              placeholder="Laisser vide pour conserver le mot de passe actuel"
+            />
+            <small>
+              Laissez vide si vous ne souhaitez pas modifier le mot de passe
+            </small>
+          </div>
+
+          <div class="form-group">
             <label for="photo">Photo</label>
             <div class="file-upload">
               <input
@@ -134,6 +193,11 @@ export default {
       website: '',
       photoUrl: '',
       photo: null,
+      address: '',
+      phone: '',
+      username: '',
+      email: '',
+      password: '',
     });
 
     const imagePreview = ref(null);
@@ -144,6 +208,7 @@ export default {
       authorData.value = {
         ...props.author,
         photo: null, // Réinitialiser la photo pour éviter de l'envoyer inutilement
+        password: '', // Réinitialiser le mot de passe pour éviter de l'envoyer inutilement
       };
 
       // Formater la date si nécessaire

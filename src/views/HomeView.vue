@@ -38,15 +38,24 @@
       <div v-else class="books-carousel">
         <div v-for="book in newReleases" :key="book.id" class="book-card">
           <div class="book-image">
-            <img
-              :src="book.coverImage || '/assets/default-book-cover.png'"
-              :alt="book.title"
-            />
+            <div v-if="book.coverImage" class="image-container">
+              <img :src="book.coverImage" :alt="book.title" />
+            </div>
+            <div v-else class="default-cover">
+              <i class="fas fa-book"></i>
+              <span class="book-title-placeholder">{{ book.title }}</span>
+            </div>
           </div>
           <div class="book-info">
             <h3 class="book-title">{{ book.title }}</h3>
             <p class="book-author">
-              {{ book.author.firstName }} {{ book.author.lastName }}
+              <template v-if="book.authors && book.authors.length > 0">
+                {{ book.authors[0].firstName }} {{ book.authors[0].lastName }}
+              </template>
+              <template v-else-if="book.author">
+                {{ book.author.firstName }} {{ book.author.lastName }}
+              </template>
+              <template v-else> Auteur inconnu </template>
             </p>
             <p class="book-price">{{ formatPrice(book.price) }}</p>
             <div class="book-actions">
@@ -80,15 +89,24 @@
       <div v-else class="books-carousel">
         <div v-for="book in popularBooks" :key="book.id" class="book-card">
           <div class="book-image">
-            <img
-              :src="book.coverImage || '/assets/default-book-cover.png'"
-              :alt="book.title"
-            />
+            <div v-if="book.coverImage" class="image-container">
+              <img :src="book.coverImage" :alt="book.title" />
+            </div>
+            <div v-else class="default-cover">
+              <i class="fas fa-book"></i>
+              <span class="book-title-placeholder">{{ book.title }}</span>
+            </div>
           </div>
           <div class="book-info">
             <h3 class="book-title">{{ book.title }}</h3>
             <p class="book-author">
-              {{ book.author.firstName }} {{ book.author.lastName }}
+              <template v-if="book.authors && book.authors.length > 0">
+                {{ book.authors[0].firstName }} {{ book.authors[0].lastName }}
+              </template>
+              <template v-else-if="book.author">
+                {{ book.author.firstName }} {{ book.author.lastName }}
+              </template>
+              <template v-else> Auteur inconnu </template>
             </p>
             <p class="book-price">{{ formatPrice(book.price) }}</p>
             <div class="book-actions">
@@ -118,7 +136,11 @@
         <router-link
           v-for="category in categories"
           :key="category.id"
-          :to="{ name: 'CategoryBooks', params: { id: category.id } }"
+          :to="
+            category.id
+              ? { name: 'CategoryBooks', params: { id: category.id } }
+              : '/categories'
+          "
           class="category-card"
         >
           <div class="category-icon">
@@ -154,15 +176,24 @@
       <div v-else class="books-carousel">
         <div v-for="book in recommendations" :key="book.id" class="book-card">
           <div class="book-image">
-            <img
-              :src="book.coverImage || '/assets/default-book-cover.png'"
-              :alt="book.title"
-            />
+            <div v-if="book.coverImage" class="image-container">
+              <img :src="book.coverImage" :alt="book.title" />
+            </div>
+            <div v-else class="default-cover">
+              <i class="fas fa-book"></i>
+              <span class="book-title-placeholder">{{ book.title }}</span>
+            </div>
           </div>
           <div class="book-info">
             <h3 class="book-title">{{ book.title }}</h3>
             <p class="book-author">
-              {{ book.author.firstName }} {{ book.author.lastName }}
+              <template v-if="book.authors && book.authors.length > 0">
+                {{ book.authors[0].firstName }} {{ book.authors[0].lastName }}
+              </template>
+              <template v-else-if="book.author">
+                {{ book.author.firstName }} {{ book.author.lastName }}
+              </template>
+              <template v-else> Auteur inconnu </template>
             </p>
             <p class="book-price">{{ formatPrice(book.price) }}</p>
             <div class="book-actions">
@@ -267,6 +298,8 @@ export default {
       try {
         const response = await BookService.getNewReleases(8);
         newReleases.value = response.data;
+        // Afficher les données dans la console pour le débogage
+        console.log('Nouvelles parutions:', newReleases.value);
       } catch (error) {
         console.error('Erreur lors du chargement des nouveautés:', error);
         newReleasesError.value =
@@ -283,6 +316,8 @@ export default {
       try {
         const response = await BookService.getPopularBooks(8);
         popularBooks.value = response.data;
+        // Afficher les données dans la console pour le débogage
+        console.log('Livres populaires:', popularBooks.value);
       } catch (error) {
         console.error(
           'Erreur lors du chargement des livres populaires:',
@@ -301,11 +336,50 @@ export default {
 
       try {
         const response = await CategoryService.getCategories();
-        categories.value = response.data;
+        console.log('Réponse brute des catégories:', response);
+
+        // Initialiser le tableau des catégories
+        let categoriesData = [];
+
+        // Déterminer la structure de la réponse et extraire les données
+        if (response && response.data) {
+          // Si la réponse a un format paginé (content)
+          if (response.data.content && Array.isArray(response.data.content)) {
+            categoriesData = response.data.content;
+          }
+          // Si la réponse est un tableau simple
+          else if (Array.isArray(response.data)) {
+            categoriesData = response.data;
+          }
+          // Si la réponse elle-même est le tableau
+          else if (response.content && Array.isArray(response.content)) {
+            categoriesData = response.content;
+          }
+        } else if (Array.isArray(response)) {
+          categoriesData = response;
+        }
+
+        // Filtrer les catégories valides (avec un ID)
+        categories.value = categoriesData
+          .filter(
+            (cat) => cat && typeof cat.id !== 'undefined' && cat.id !== null
+          )
+          .map((cat) => ({
+            id: cat.id,
+            name: cat.name || 'Catégorie sans nom',
+            bookCount: cat.bookCount || 0,
+            description: cat.description || '',
+            color: cat.color || 'blue',
+            icon: cat.icon || 'book',
+          }));
+
+        console.log('Catégories traitées:', categories.value);
       } catch (error) {
         console.error('Erreur lors du chargement des catégories:', error);
         categoriesError.value =
           'Impossible de charger les catégories. Veuillez réessayer plus tard.';
+        // Si une erreur se produit, initialiser categories comme un tableau vide
+        categories.value = [];
       } finally {
         loadingCategories.value = false;
       }
@@ -351,7 +425,8 @@ export default {
     };
 
     const formatPrice = (price) => {
-      return `${price.toFixed(2)} €`;
+      if (!price) return '0.00 €';
+      return `${parseFloat(price).toFixed(2)} €`;
     };
 
     const getCategoryIcon = (categoryName) => {
@@ -542,14 +617,58 @@ export default {
 }
 
 .book-image {
-  height: 250px;
+  height: 220px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   overflow: hidden;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  margin-bottom: 15px;
 }
 
-.book-image img {
+.image-container {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.image-container img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.default-cover {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: #e9ecef;
+  color: #495057;
+  padding: 1rem;
+  text-align: center;
+}
+
+.default-cover i {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  color: #6c757d;
+}
+
+.book-title-placeholder {
+  font-size: 0.9rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
 }
 
 .book-info {

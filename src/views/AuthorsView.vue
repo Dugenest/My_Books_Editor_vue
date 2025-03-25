@@ -1,30 +1,32 @@
 <template>
-  <div class="categories-container">
-    <h1 class="page-title">Catégories</h1>
+  <div class="authors-container">
+    <h1 class="page-title">Auteurs</h1>
 
     <div v-if="loading" class="loading-state">
       <i class="fas fa-spinner fa-spin"></i>
-      <span>Chargement des catégories...</span>
+      <span>Chargement des auteurs...</span>
     </div>
 
     <div v-else-if="error" class="error-state">
       <i class="fas fa-exclamation-circle"></i>
       <p>{{ error }}</p>
-      <button @click="fetchCategories" class="retry-button">Réessayer</button>
+      <button @click="fetchAuthors" class="retry-button">Réessayer</button>
     </div>
 
-    <div v-else class="categories-grid">
+    <div v-else class="authors-grid">
       <router-link
-        v-for="category in categories"
-        :key="category.id"
-        :to="{ name: 'CategoryBooks', params: { id: category.id } }"
-        class="category-card"
+        v-for="author in authors"
+        :key="author.id"
+        :to="{ name: 'AuthorDetails', params: { id: author.id } }"
+        class="author-card"
       >
-        <div class="category-icon">
-          <i :class="getCategoryIcon(category.name)"></i>
+        <div class="author-avatar">
+          <i class="fas fa-user-circle"></i>
         </div>
-        <h2 class="category-name">{{ category.name }}</h2>
-        <p class="category-count">{{ category.bookCount }} livres</p>
+        <h2 class="author-name">
+          {{ author.firstName }} {{ author.lastName }}
+        </h2>
+        <p class="author-count">{{ author.bookCount }} livres</p>
       </router-link>
     </div>
   </div>
@@ -32,100 +34,83 @@
 
 <script>
 import { ref, onMounted } from 'vue';
-import CategoryService from '@/services/CategoryService';
+import AuthorService from '@/services/AuthorService';
 
 export default {
-  name: 'CategoriesView',
+  name: 'AuthorsView',
 
   setup() {
-    const categories = ref([]);
+    const authors = ref([]);
     const loading = ref(true);
     const error = ref('');
 
-    const getCategoryIcon = (categoryName) => {
-      const icons = {
-        Roman: 'fas fa-book',
-        'Science-Fiction': 'fas fa-rocket',
-        Policier: 'fas fa-search',
-        Fantasy: 'fas fa-dragon',
-        Biographie: 'fas fa-user-edit',
-        Histoire: 'fas fa-landmark',
-        Sciences: 'fas fa-atom',
-        Art: 'fas fa-palette',
-        Cuisine: 'fas fa-utensils',
-        Jeunesse: 'fas fa-child',
-      };
-      return icons[categoryName] || 'fas fa-book';
-    };
-
-    const fetchCategories = async () => {
+    const fetchAuthors = async () => {
       loading.value = true;
       error.value = '';
 
       try {
-        const response = await CategoryService.getCategories();
-        console.log('Réponse brute des catégories:', response);
+        const response = await AuthorService.getAuthors();
+        console.log('Réponse brute des auteurs:', response);
 
-        // Initialiser le tableau des catégories
-        let categoriesData = [];
+        // Initialiser le tableau des auteurs
+        let authorsData = [];
 
         // Déterminer la structure de la réponse et extraire les données
         if (response && response.data) {
           // Si la réponse a un format paginé (content)
           if (response.data.content && Array.isArray(response.data.content)) {
-            categoriesData = response.data.content;
+            authorsData = response.data.content;
           }
           // Si la réponse est un tableau simple
           else if (Array.isArray(response.data)) {
-            categoriesData = response.data;
+            authorsData = response.data;
           }
           // Si la réponse elle-même est le tableau
           else if (response.content && Array.isArray(response.content)) {
-            categoriesData = response.content;
+            authorsData = response.content;
           }
         } else if (Array.isArray(response)) {
-          categoriesData = response;
+          authorsData = response;
         }
 
-        // Filtrer les catégories valides (avec un ID)
-        categories.value = categoriesData
+        // Filtrer les auteurs valides (avec un ID)
+        authors.value = authorsData
           .filter(
-            (cat) => cat && typeof cat.id !== 'undefined' && cat.id !== null
+            (author) =>
+              author && typeof author.id !== 'undefined' && author.id !== null
           )
-          .map((cat) => ({
-            id: cat.id,
-            name: cat.name || 'Catégorie sans nom',
-            bookCount: cat.bookCount || 0,
-            description: cat.description || '',
-            color: cat.color || 'blue',
-            icon: cat.icon || 'book',
+          .map((author) => ({
+            id: author.id,
+            firstName: author.firstName || 'Prénom inconnu',
+            lastName: author.lastName || 'Nom inconnu',
+            bookCount: author.bookCount || 0,
+            biography: author.biography || '',
           }));
 
-        console.log('Catégories traitées:', categories.value);
+        console.log('Auteurs traités:', authors.value);
       } catch (err) {
-        console.error('Erreur lors du chargement des catégories:', err);
+        console.error('Erreur lors du chargement des auteurs:', err);
         error.value =
-          'Impossible de charger les catégories. Veuillez réessayer plus tard.';
+          'Impossible de charger les auteurs. Veuillez réessayer plus tard.';
       } finally {
         loading.value = false;
       }
     };
 
-    onMounted(fetchCategories);
+    onMounted(fetchAuthors);
 
     return {
-      categories,
+      authors,
       loading,
       error,
-      getCategoryIcon,
-      fetchCategories,
+      fetchAuthors,
     };
   },
 };
 </script>
 
 <style scoped>
-.categories-container {
+.authors-container {
   padding: 2rem;
   max-width: 1200px;
   margin: 0 auto;
@@ -171,13 +156,13 @@ export default {
   background-color: #303f9f;
 }
 
-.categories-grid {
+.authors-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 2rem;
 }
 
-.category-card {
+.author-card {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -190,40 +175,40 @@ export default {
   transition: transform 0.3s, box-shadow 0.3s;
 }
 
-.category-card:hover {
+.author-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.category-icon {
-  font-size: 2.5rem;
+.author-avatar {
+  font-size: 3rem;
   color: #3f51b5;
   margin-bottom: 1rem;
 }
 
-.category-name {
+.author-name {
   font-size: 1.25rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
   text-align: center;
 }
 
-.category-count {
+.author-count {
   color: #666;
   font-size: 0.9rem;
 }
 
 @media (max-width: 768px) {
-  .categories-container {
+  .authors-container {
     padding: 1rem;
   }
 
-  .categories-grid {
+  .authors-grid {
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 1rem;
   }
 
-  .category-card {
+  .author-card {
     padding: 1.5rem;
   }
 }

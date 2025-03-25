@@ -33,6 +33,16 @@
           </div>
 
           <div class="form-group">
+            <label for="username">Nom d'utilisateur *</label>
+            <input
+              type="text"
+              id="username"
+              v-model="editedUser.username"
+              required
+            />
+          </div>
+
+          <div class="form-group">
             <label for="email">Email *</label>
             <input
               type="email"
@@ -40,6 +50,34 @@
               v-model="editedUser.email"
               required
             />
+          </div>
+
+          <div class="form-group">
+            <label for="address">Adresse</label>
+            <textarea
+              id="address"
+              v-model="editedUser.address"
+              rows="3"
+            ></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="phone">Téléphone</label>
+            <input type="tel" id="phone" v-model="editedUser.phone" />
+          </div>
+
+          <div class="form-group password-change-toggle">
+            <button
+              type="button"
+              class="btn-link"
+              @click="changePassword = !changePassword"
+            >
+              {{
+                changePassword
+                  ? 'Annuler le changement de mot de passe'
+                  : 'Changer le mot de passe'
+              }}
+            </button>
           </div>
 
           <div class="form-row" v-if="changePassword">
@@ -67,32 +105,14 @@
             </div>
           </div>
 
-          <div class="form-group password-change-toggle">
-            <button
-              type="button"
-              class="btn-link"
-              @click="changePassword = !changePassword"
-            >
-              {{
-                changePassword
-                  ? 'Annuler le changement de mot de passe'
-                  : 'Changer le mot de passe'
-              }}
-            </button>
-          </div>
-
           <div class="form-group">
             <label for="role">Rôle *</label>
             <select id="role" v-model="editedUser.role" required>
               <option value="USER">Utilisateur</option>
               <option value="EDITOR">Éditeur</option>
               <option value="ADMIN">Administrateur</option>
+              <option value="AUTHOR">Auteur</option>
             </select>
-          </div>
-
-          <div class="form-group">
-            <label for="phone">Téléphone</label>
-            <input type="tel" id="phone" v-model="editedUser.phone" />
           </div>
 
           <div class="form-group">
@@ -134,6 +154,10 @@
             </label>
           </div>
 
+          <div v-if="formError" class="form-error-message">
+            {{ formError }}
+          </div>
+
           <div class="form-actions">
             <button type="button" class="btn-secondary" @click="$emit('close')">
               Annuler
@@ -158,6 +182,7 @@
 
 <script>
 import { ref, computed, onMounted } from 'vue';
+import UserService from '@/services/UserService';
 
 export default {
   name: 'EditUserModal',
@@ -177,21 +202,26 @@ export default {
     const avatarPreview = ref(null);
     const isSubmitting = ref(false);
     const changePassword = ref(false);
+    const formError = ref('');
 
     onMounted(() => {
-      // Extraction du prénom et du nom à partir du nom complet
-      const nameParts = props.user.name ? props.user.name.split(' ') : ['', ''];
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
-
       // Copier les valeurs de l'utilisateur pour éviter de modifier l'objet original
       editedUser.value = {
         ...props.user,
-        firstName,
-        lastName,
+        // Assurer que toutes les propriétés nécessaires sont présentes
+        id: props.user.id,
+        firstName: props.user.firstName || '',
+        lastName: props.user.lastName || '',
+        username: props.user.username || '',
+        email: props.user.email || '',
+        address: props.user.address || '',
+        phone: props.user.phone || '',
+        role: props.user.role || 'USER',
+        active: props.user.active !== undefined ? props.user.active : true,
         password: '',
-        active: props.user.status === 'active',
       };
+
+      console.log('Données utilisateur chargées:', editedUser.value);
     });
 
     const passwordError = computed(() => {
@@ -209,6 +239,7 @@ export default {
       const basicValidation =
         editedUser.value.firstName &&
         editedUser.value.lastName &&
+        editedUser.value.username &&
         editedUser.value.email;
 
       if (changePassword.value) {
@@ -232,34 +263,50 @@ export default {
 
     const removeCurrentAvatar = () => {
       editedUser.value.avatar = null;
+      editedUser.value.avatarRemoved = true;
     };
 
     const handleSubmit = async () => {
       if (!isFormValid.value) return;
 
-      try {
-        isSubmitting.value = true;
+      formError.value = '';
+      isSubmitting.value = true;
 
+      try {
         // Préparation des données à envoyer
-        const userData = {
-          ...editedUser.value,
-          name: `${editedUser.value.firstName} ${editedUser.value.lastName}`,
-          status: editedUser.value.active ? 'active' : 'inactive',
-        };
+        const userData = { ...editedUser.value };
 
         // Ne pas inclure le mot de passe si non modifié
         if (!changePassword.value) {
           delete userData.password;
         }
 
-        // Simulation d'appel API
-        // En production, on appellerait un service ou une API pour mettre à jour l'utilisateur
-        // await userService.updateUser(userData.id, userData);
+        // Si l'avatar a été modifié, créer un FormData
+        if (userData.newAvatar || userData.avatarRemoved) {
+          const formData = new FormData();
 
-        console.log('Utilisateur modifié:', userData);
+          // Ajouter toutes les propriétés à formData
+          Object.keys(userData).forEach((key) => {
+            if (key !== 'newAvatar' && key !== 'avatar') {
+              formData.append(key, userData[key]);
+            }
+          });
 
-        // Simuler un délai pour l'enregistrement
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+          if (userData.newAvatar) {
+            formData.append('avatar', userData.newAvatar);
+          }
+
+          // Appel au service avec FormData
+          const response = await UserService.updateWithAvatar(
+            userData.id,
+            formData
+          );
+          console.log('Réponse de mise à jour avec avatar:', response);
+        } else {
+          // Appel standard au service
+          const response = await UserService.update(userData.id, userData);
+          console.log('Réponse de mise à jour:', response);
+        }
 
         emit('user-updated', userData);
         emit('close');
@@ -268,7 +315,15 @@ export default {
           "Erreur lors de la modification de l'utilisateur:",
           error
         );
-        // Gérer les erreurs (afficher un message, etc.)
+
+        if (error.response && error.response.data) {
+          formError.value =
+            error.response.data.message ||
+            'Une erreur est survenue lors de la mise à jour';
+        } else {
+          formError.value =
+            'Une erreur est survenue lors de la communication avec le serveur';
+        }
       } finally {
         isSubmitting.value = false;
       }
@@ -280,6 +335,7 @@ export default {
       avatarPreview,
       isSubmitting,
       changePassword,
+      formError,
       passwordError,
       isFormValid,
       handleAvatarUpload,
@@ -374,6 +430,15 @@ export default {
   color: #d32f2f;
   font-size: 0.875rem;
   margin-top: 0.5rem;
+}
+
+.form-error-message {
+  color: #d32f2f;
+  background-color: #ffebee;
+  padding: 1rem;
+  border-radius: 4px;
+  margin-bottom: 1.5rem;
+  font-weight: 500;
 }
 
 .password-change-toggle {
@@ -544,5 +609,12 @@ input:checked + .slider:before {
 
 .btn-secondary:hover {
   background-color: #f5f5f5;
+}
+
+@media (max-width: 768px) {
+  .form-row {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
 }
 </style>

@@ -108,6 +108,33 @@
         @selection-change="selectedAuthors = $event"
       />
 
+      <!-- Gestion des éditeurs -->
+      <EditorsSection
+        v-if="currentSection === 'editors'"
+        :editors="editors"
+        @edit="editEditor"
+        @delete="deleteEditor"
+        @add="showAddEditorModal = true"
+      />
+
+      <!-- Gestion des séries -->
+      <SeriesSection
+        v-if="currentSection === 'series'"
+        :series="series"
+        @edit="editSeries"
+        @delete="deleteSeries"
+        @add="showAddSeriesModal = true"
+      />
+
+      <!-- Gestion des commentaires -->
+      <CommentsSection
+        v-if="currentSection === 'comments'"
+        :comments="comments"
+        @approve="approveComment"
+        @reject="rejectComment"
+        @delete="deleteComment"
+      />
+
       <!-- Paramètres -->
       <SettingsSection
         v-if="currentSection === 'settings'"
@@ -178,6 +205,19 @@
       @close="authorToEdit = null"
       @author-updated="onAuthorUpdated"
     />
+
+    <AddEditorModal
+      v-if="showAddEditorModal"
+      @close="showAddEditorModal = false"
+      @editor-added="onEditorAdded"
+    />
+
+    <EditEditorModal
+      v-if="editorToEdit"
+      :editor="editorToEdit"
+      @close="editorToEdit = null"
+      @editor-updated="onEditorUpdated"
+    />
   </div>
 </template>
 
@@ -187,33 +227,39 @@ import { onMounted, ref, watch } from 'vue';
 import AdminSidebar from './AdminSidebar.vue';
 
 // Importation des composants de section
-import DashboardSection from '@/components/admin/sections/DashboardSection.vue';
-import BooksSection from '@/components/admin/sections/BooksSection.vue';
-import OrdersSection from '@/components/admin/sections/OrdersSection.vue';
-import UsersSection from '@/components/admin/sections/UsersSection.vue';
-import CategoriesSection from '@/components/admin/sections/CategoriesSection.vue';
 import AuthorsSection from '@/components/admin/sections/AuthorsSection.vue';
+import BooksSection from '@/components/admin/sections/BooksSection.vue';
+import CategoriesSection from '@/components/admin/sections/CategoriesSection.vue';
+import CommentsSection from '@/components/admin/sections/CommentsSection.vue';
+import DashboardSection from '@/components/admin/sections/DashboardSection.vue';
+import EditorsSection from '@/components/admin/sections/EditorsSection.vue';
+import OrdersSection from '@/components/admin/sections/OrdersSection.vue';
+import SeriesSection from '@/components/admin/sections/SeriesSection.vue';
 import SettingsSection from '@/components/admin/sections/SettingsSection.vue';
+import UsersSection from '@/components/admin/sections/UsersSection.vue';
 
 // Importation des modals
-import AddBookModal from '@/components/admin/modals/AddBookModal.vue';
-import EditBookModal from '@/components/admin/modals/EditBookModal.vue';
-import OrderDetailsModal from '@/components/admin/modals/OrderDetailsModal.vue';
-import AddUserModal from '@/components/admin/modals/AddUserModal.vue';
-import EditUserModal from '@/components/admin/modals/EditUserModal.vue';
-import AddCategoryModal from '@/components/admin/modals/AddCategoryModal.vue';
-import EditCategoryModal from '@/components/admin/modals/EditCategoryModal.vue';
 import AddAuthorModal from '@/components/admin/modals/AddAuthorModal.vue';
+import AddBookModal from '@/components/admin/modals/AddBookModal.vue';
+import AddCategoryModal from '@/components/admin/modals/AddCategoryModal.vue';
+import AddEditorModal from '@/components/admin/modals/AddEditorModal.vue';
+import AddUserModal from '@/components/admin/modals/AddUserModal.vue';
 import EditAuthorModal from '@/components/admin/modals/EditAuthorModal.vue';
+import EditBookModal from '@/components/admin/modals/EditBookModal.vue';
+import EditCategoryModal from '@/components/admin/modals/EditCategoryModal.vue';
+import EditEditorModal from '@/components/admin/modals/EditEditorModal.vue';
+import EditUserModal from '@/components/admin/modals/EditUserModal.vue';
+import OrderDetailsModal from '@/components/admin/modals/OrderDetailsModal.vue';
 
 // Importation des services
+import ActivityService from '@/services/ActivityService';
+import AuthorService from '@/services/AuthorService';
 import BookService from '@/services/BookService';
 import CategoryService from '@/services/CategoryService';
-import AuthorService from '@/services/AuthorService';
-import UserService from '@/services/UserService';
+import EditorService from '@/services/EditorService';
 import OrderService from '@/services/OrderService';
 import SettingsService from '@/services/SettingsService';
-import ActivityService from '@/services/ActivityService';
+import UserService from '@/services/UserService';
 
 export default {
   name: 'AdminDashboard',
@@ -227,6 +273,9 @@ export default {
     CategoriesSection,
     AuthorsSection,
     SettingsSection,
+    EditorsSection,
+    SeriesSection,
+    CommentsSection,
     AddBookModal,
     EditBookModal,
     OrderDetailsModal,
@@ -236,6 +285,8 @@ export default {
     EditCategoryModal,
     AddAuthorModal,
     EditAuthorModal,
+    AddEditorModal,
+    EditEditorModal,
   },
 
   setup() {
@@ -253,6 +304,9 @@ export default {
     const categoryToEdit = ref(null);
     const showAddAuthorModal = ref(false);
     const authorToEdit = ref(null);
+    const showAddEditorModal = ref(false);
+    const editorToEdit = ref(null);
+    const showAddSeriesModal = ref(false);
 
     // États pour les données
     const books = ref([]);
@@ -265,6 +319,10 @@ export default {
     const authors = ref([]);
     const filteredAuthors = ref([]);
     const recentActivity = ref([]);
+    const editors = ref([]);
+    const notifications = ref([]);
+    const series = ref([]);
+    const comments = ref([]);
 
     // États pour les statistiques du tableau de bord
     const stats = ref({
@@ -351,46 +409,259 @@ export default {
     // Navigation sections
     const navSections = [
       { id: 'dashboard', label: 'Tableau de bord', icon: 'fas fa-chart-line' },
-      { id: 'books', label: 'Livres', icon: 'fas fa-book' },
       { id: 'orders', label: 'Commandes', icon: 'fas fa-shopping-cart' },
-      { id: 'users', label: 'Utilisateurs', icon: 'fas fa-users' },
+      { id: 'books', label: 'Livres', icon: 'fas fa-book' },
       { id: 'categories', label: 'Catégories', icon: 'fas fa-tags' },
+      { id: 'series', label: 'Séries', icon: 'fas fa-layer-group' },
+      { id: 'users', label: 'Utilisateurs', icon: 'fas fa-users' },
       { id: 'authors', label: 'Auteurs', icon: 'fas fa-user-edit' },
+      { id: 'editors', label: 'Éditeurs', icon: 'fas fa-building' },
+      { id: 'comments', label: 'Commentaires', icon: 'fas fa-comments' },
       { id: 'settings', label: 'Paramètres', icon: 'fas fa-cog' },
     ];
 
+    console.log('Chargement des données du tableau de bord...');
     // Charger les données
     const loadDashboardData = async () => {
       try {
         isLoading.value = true;
 
-        // Charger les statistiques
-        const statsResponse = await ActivityService.getStats();
-        if (statsResponse && statsResponse.data) {
-          stats.value = statsResponse.data;
-        }
-
-        // Charger l'activité récente
-        const activityResponse = await ActivityService.getRecentActivity();
-        if (activityResponse && activityResponse.data) {
-          recentActivity.value = activityResponse.data;
-        }
-
-        // Charger les catégories pour les filtres
-        await loadCategories();
-      } catch (error) {
-        console.error(
-          'Erreur lors du chargement des données du tableau de bord:',
-          error
+        console.log(
+          '=== Début du chargement des données du tableau de bord ==='
         );
+
+        console.log('1. Appel API pour les statistiques...');
+        const statsResponse = await ActivityService.getStats();
+        console.log('Réponse brute des statistiques:', statsResponse);
+
+        // Vérifier si la réponse contient des données valides
+        if (
+          statsResponse &&
+          (statsResponse.data || typeof statsResponse === 'object')
+        ) {
+          // Utiliser directement statsResponse si c'est un objet sans propriété data
+          const statsData = statsResponse.data || statsResponse;
+          console.log('Données des statistiques traitées:', statsData);
+
+          // Mettre à jour les statistiques avec les données reçues
+          stats.value = {
+            // Valeurs par défaut à 0
+            totalOrders: 0,
+            ordersChange: 0,
+            totalRevenue: 0,
+            revenueChange: 0,
+            totalUsers: 0,
+            usersChange: 0,
+            totalBooks: 0,
+            outOfStock: 0,
+            totalCategories: 0,
+            totalAuthors: 0,
+            totalEditors: 0,
+            totalSeries: 0,
+            totalComments: 0,
+            // Écraser avec les données reçues
+            ...statsData,
+          };
+          console.log('Statistiques finales après traitement:', stats.value);
+        } else {
+          console.warn(
+            'Aucune donnée de statistiques reçue ou format non reconnu'
+          );
+        }
+
+        // Chargement des catégories pour le décompte
+        try {
+          const categoriesResponse = await CategoryService.getCategories();
+          if (categoriesResponse && categoriesResponse.data) {
+            if (Array.isArray(categoriesResponse.data)) {
+              stats.value.totalCategories = categoriesResponse.data.length;
+            } else if (
+              categoriesResponse.data.content &&
+              Array.isArray(categoriesResponse.data.content)
+            ) {
+              stats.value.totalCategories =
+                categoriesResponse.data.content.length;
+            }
+          }
+          console.log('Nombre de catégories:', stats.value.totalCategories);
+        } catch (error) {
+          console.error('Erreur lors du chargement des catégories:', error);
+        }
+
+        // Chargement des livres pour le décompte
+        try {
+          const booksResponse = await BookService.getBooks({
+            page: 0,
+            size: 1,
+          });
+          console.log('Réponse du service des livres:', booksResponse);
+
+          if (booksResponse && booksResponse.data) {
+            if (Array.isArray(booksResponse.data)) {
+              stats.value.totalBooks = booksResponse.data.length;
+              console.log(
+                'Nombre de livres (tableau):',
+                stats.value.totalBooks
+              );
+            } else if (
+              booksResponse.data.content &&
+              Array.isArray(booksResponse.data.content)
+            ) {
+              // Si nous avons un objet paginé, nous voulons le nombre total d'éléments, pas juste la page actuelle
+              if (typeof booksResponse.data.totalElements === 'number') {
+                stats.value.totalBooks = booksResponse.data.totalElements;
+                console.log(
+                  'Nombre total de livres (pagination):',
+                  stats.value.totalBooks
+                );
+              } else {
+                // Fallback sur la longueur du contenu de la page actuelle
+                stats.value.totalBooks = booksResponse.data.content.length;
+                console.log(
+                  'Nombre de livres dans la page actuelle:',
+                  stats.value.totalBooks
+                );
+              }
+            } else if (typeof booksResponse.data.totalElements === 'number') {
+              stats.value.totalBooks = booksResponse.data.totalElements;
+              console.log('Nombre total de livres:', stats.value.totalBooks);
+            }
+          } else {
+            console.warn('Réponse du service des livres invalide ou vide');
+            stats.value.totalBooks = 0;
+          }
+          console.log(
+            'Nombre final de livres dans les statistiques:',
+            stats.value.totalBooks
+          );
+        } catch (error) {
+          console.error(
+            'Erreur lors du chargement du nombre de livres:',
+            error
+          );
+          stats.value.totalBooks = 0;
+        }
+
+        // Chargement des utilisateurs pour le décompte
+        try {
+          const usersResponse = await UserService.getUsers({
+            page: 0,
+            size: 1,
+          });
+          if (usersResponse && usersResponse.data) {
+            if (Array.isArray(usersResponse.data)) {
+              stats.value.totalUsers = usersResponse.data.length;
+            } else if (
+              usersResponse.data.content &&
+              Array.isArray(usersResponse.data.content)
+            ) {
+              stats.value.totalUsers = usersResponse.data.content.length;
+            } else if (typeof usersResponse.data.totalElements === 'number') {
+              stats.value.totalUsers = usersResponse.data.totalElements;
+            }
+          }
+          console.log("Nombre d'utilisateurs:", stats.value.totalUsers);
+        } catch (error) {
+          console.error(
+            "Erreur lors du chargement du nombre d'utilisateurs:",
+            error
+          );
+        }
+
+        // Chargement des auteurs pour le décompte
+        try {
+          const authorsResponse = await AuthorService.getAuthors();
+          if (authorsResponse && authorsResponse.data) {
+            if (Array.isArray(authorsResponse.data)) {
+              stats.value.totalAuthors = authorsResponse.data.length;
+            } else if (
+              authorsResponse.data.content &&
+              Array.isArray(authorsResponse.data.content)
+            ) {
+              stats.value.totalAuthors = authorsResponse.data.content.length;
+            } else if (typeof authorsResponse.data.totalElements === 'number') {
+              stats.value.totalAuthors = authorsResponse.data.totalElements;
+            }
+          }
+          console.log("Nombre d'auteurs:", stats.value.totalAuthors);
+        } catch (error) {
+          console.error('Erreur lors du chargement des auteurs:', error);
+        }
+
+        // Chargement des éditeurs pour le décompte
+        try {
+          const editorsResponse = await EditorService.getEditors();
+          if (editorsResponse && editorsResponse.data) {
+            if (Array.isArray(editorsResponse.data)) {
+              stats.value.totalEditors = editorsResponse.data.length;
+            } else if (
+              editorsResponse.data.content &&
+              Array.isArray(editorsResponse.data.content)
+            ) {
+              stats.value.totalEditors = editorsResponse.data.content.length;
+            } else if (typeof editorsResponse.data.totalElements === 'number') {
+              stats.value.totalEditors = editorsResponse.data.totalElements;
+            }
+          }
+          console.log("Nombre d'éditeurs:", stats.value.totalEditors);
+        } catch (error) {
+          console.error('Erreur lors du chargement des éditeurs:', error);
+        }
+
+        console.log("Appel API pour l'activité récente...");
+        const activityResponse = await ActivityService.getRecentActivity();
+        console.log("Réponse de l'activité récente:", activityResponse);
+
+        if (activityResponse && Array.isArray(activityResponse)) {
+          recentActivity.value = activityResponse.map((activity) => ({
+            id: activity.id,
+            type: activity.type,
+            text: activity.message || activity.description,
+            timestamp: activity.timestamp || activity.date,
+            userId: activity.userId,
+            data: activity.data,
+          }));
+          console.log('Activité récente chargée:', recentActivity.value);
+        } else if (
+          activityResponse &&
+          activityResponse.data &&
+          Array.isArray(activityResponse.data)
+        ) {
+          recentActivity.value = activityResponse.data.map((activity) => ({
+            id: activity.id,
+            type: activity.type,
+            text: activity.message || activity.description,
+            timestamp: activity.timestamp || activity.date,
+            userId: activity.userId,
+            data: activity.data,
+          }));
+          console.log('Activité récente chargée:', recentActivity.value);
+        } else {
+          console.error("Réponse invalide pour l'activité récente");
+          recentActivity.value = [];
+        }
+      } catch (error) {
+        console.error('=== Erreur lors du chargement des données ===');
+        console.error("Type d'erreur:", error.constructor.name);
+        console.error("Message d'erreur:", error.message);
+        if (error.response) {
+          console.error('Statut HTTP:', error.response.status);
+          console.error('Données de réponse:', error.response.data);
+          console.error('En-têtes de réponse:', error.response.headers);
+        }
+        if (error.request) {
+          console.error('Détails de la requête:', error.request);
+        }
       } finally {
         isLoading.value = false;
+        console.log('=== Fin du chargement des données du tableau de bord ===');
       }
     };
 
     const loadBooks = async () => {
       try {
         isLoading.value = true;
+        console.log('Chargement des livres...');
 
         // S'assurer que les valeurs de pagination sont des nombres valides
         const page = Number.isInteger(bookPagination.value.currentPage)
@@ -400,22 +671,38 @@ export default {
           ? bookPagination.value.pageSize
           : 10;
 
-        const response = await BookService.getBooks({
-          page,
-          size,
-          sort: `${bookSort.value.field},${bookSort.value.direction}`,
-          ...buildBookFilters(),
-        });
+        try {
+          const response = await BookService.getBooks({
+            page,
+            size,
+            sort: `${bookSort.value.field},${bookSort.value.direction}`,
+            ...buildBookFilters(),
+          });
 
-        if (response && response.data) {
-          books.value = response.data.content || [];
-          filteredBooks.value = books.value;
+          if (response && response.data) {
+            books.value = response.data.content || [];
+            filteredBooks.value = books.value;
 
-          // Mettre à jour la pagination
-          bookPagination.value.totalPages = response.data.totalPages || 1;
+            // Mettre à jour la pagination
+            bookPagination.value.totalPages = response.data.totalPages || 1;
+          }
+        } catch (error) {
+          console.error('Erreur lors du chargement des livres:', {
+            message: error.message,
+            status: error.response?.status,
+            data: error.response?.data,
+          });
+
+          books.value = [];
+          filteredBooks.value = [];
+          bookPagination.value.totalPages = 1;
+
+          notifications.value.push({
+            type: 'error',
+            message:
+              'Impossible de charger les livres. Veuillez réessayer plus tard.',
+          });
         }
-      } catch (error) {
-        console.error('Erreur lors du chargement des livres:', error);
       } finally {
         isLoading.value = false;
       }
@@ -466,6 +753,13 @@ export default {
           ? userPagination.value.pageSize
           : 10;
 
+        console.log('Chargement des utilisateurs avec params:', {
+          page,
+          size,
+          sort: `${userSort.value.field},${userSort.value.direction}`,
+          ...buildUserFilters(),
+        });
+
         const response = await UserService.getUsers({
           page,
           size,
@@ -473,15 +767,41 @@ export default {
           ...buildUserFilters(),
         });
 
-        if (response && response.data) {
-          users.value = response.data.content || [];
-          filteredUsers.value = users.value;
+        console.log('Réponse brute des utilisateurs:', response);
 
-          // Mettre à jour la pagination
-          userPagination.value.totalPages = response.data.totalPages || 1;
+        if (response && response.data) {
+          if (Array.isArray(response.data)) {
+            // Si la réponse est directement un tableau
+            users.value = response.data;
+          } else if (
+            response.data.content &&
+            Array.isArray(response.data.content)
+          ) {
+            // Si la réponse est un objet paginé avec content
+            users.value = response.data.content;
+            userPagination.value.totalPages = response.data.totalPages || 1;
+          } else if (typeof response.data === 'object') {
+            // Si c'est un objet non paginé
+            users.value = [response.data];
+          } else {
+            users.value = [];
+          }
+
+          console.log(
+            'Données des utilisateurs après traitement:',
+            users.value
+          );
+          filteredUsers.value = users.value;
+          console.log('filteredUsers après assignation:', filteredUsers.value);
+        } else {
+          users.value = [];
+          filteredUsers.value = [];
+          console.warn('Aucune donnée utilisateur reçue ou format non reconnu');
         }
       } catch (error) {
         console.error('Erreur lors du chargement des utilisateurs:', error);
+        users.value = [];
+        filteredUsers.value = [];
       } finally {
         isLoading.value = false;
       }
@@ -489,17 +809,84 @@ export default {
 
     const loadCategories = async () => {
       try {
-        isLoading.value = true;
-
+        console.log('Chargement des catégories...');
         const response = await CategoryService.getCategories();
 
+        // Gérer différents formats de réponse possibles
+        let categoriesData = [];
         if (response && response.data) {
-          categories.value = response.data || [];
+          if (Array.isArray(response.data)) {
+            categoriesData = response.data;
+          } else if (
+            response.data.content &&
+            Array.isArray(response.data.content)
+          ) {
+            categoriesData = response.data.content;
+          }
         }
+
+        // Transformer les données pour le format attendu par le composant
+        categories.value = categoriesData.map((cat) => ({
+          id: cat.id,
+          name: cat.name || 'Catégorie sans nom',
+          description: cat.description || '',
+          icon: cat.icon || 'fas fa-book',
+          color: cat.color || 'blue',
+          booksCount: cat.booksCount || 0,
+          activeBooks: cat.activeBooks || 0,
+        }));
+
+        console.log('Catégories chargées:', categories.value);
       } catch (error) {
-        console.error('Erreur lors du chargement des catégories:', error);
-      } finally {
-        isLoading.value = false;
+        console.error('Erreur lors du chargement des catégories:', {
+          message: error.message,
+          status: error.response?.status,
+          data: error.response?.data,
+        });
+        categories.value = [];
+        notifications.value.push({
+          type: 'error',
+          message:
+            'Impossible de charger les catégories. Veuillez réessayer plus tard.',
+        });
+      }
+    };
+
+    const loadEditors = async () => {
+      try {
+        console.log('Chargement des éditeurs...');
+        const response = await EditorService.getEditors();
+        console.log('Réponse brute des éditeurs:', response);
+
+        // Déterminer automatiquement la structure de la réponse
+        if (Array.isArray(response)) {
+          editors.value = response;
+        } else if (response && typeof response === 'object') {
+          // Si c'est une réponse axios
+          if (response.data) {
+            // Si les données sont dans data.content (pagination)
+            if (response.data.content && Array.isArray(response.data.content)) {
+              editors.value = response.data.content;
+            }
+            // Si les données sont directement dans data (tableau)
+            else if (Array.isArray(response.data)) {
+              editors.value = response.data;
+            }
+            // Si data contient directement un objet (cas rare)
+            else {
+              editors.value = [response.data];
+            }
+          } else {
+            editors.value = [];
+          }
+        } else {
+          editors.value = [];
+        }
+
+        console.log('Éditeurs chargés:', editors.value);
+      } catch (error) {
+        console.error('Erreur lors du chargement des éditeurs:', error);
+        editors.value = [];
       }
     };
 
@@ -515,6 +902,13 @@ export default {
           ? authorPagination.value.pageSize
           : 10;
 
+        console.log('Chargement des auteurs avec params:', {
+          page,
+          size,
+          sort: `${authorSort.value.field},${authorSort.value.direction}`,
+          ...buildAuthorFilters(),
+        });
+
         const response = await AuthorService.getAuthors({
           page,
           size,
@@ -522,15 +916,41 @@ export default {
           ...buildAuthorFilters(),
         });
 
-        if (response && response.data) {
-          authors.value = response.data.content || [];
-          filteredAuthors.value = authors.value;
+        console.log('Réponse brute des auteurs:', response);
 
-          // Mettre à jour la pagination
-          authorPagination.value.totalPages = response.data.totalPages || 1;
+        if (response && response.data) {
+          if (Array.isArray(response.data)) {
+            // Si la réponse est directement un tableau
+            authors.value = response.data;
+          } else if (
+            response.data.content &&
+            Array.isArray(response.data.content)
+          ) {
+            // Si la réponse est un objet paginé avec content
+            authors.value = response.data.content;
+            authorPagination.value.totalPages = response.data.totalPages || 1;
+          } else if (typeof response.data === 'object') {
+            // Si c'est un objet non paginé
+            authors.value = [response.data];
+          } else {
+            authors.value = [];
+          }
+
+          console.log('Données des auteurs après traitement:', authors.value);
+          filteredAuthors.value = authors.value;
+          console.log(
+            'filteredAuthors après assignation:',
+            filteredAuthors.value
+          );
+        } else {
+          authors.value = [];
+          filteredAuthors.value = [];
+          console.warn('Aucune donnée auteur reçue ou format non reconnu');
         }
       } catch (error) {
         console.error('Erreur lors du chargement des auteurs:', error);
+        authors.value = [];
+        filteredAuthors.value = [];
       } finally {
         isLoading.value = false;
       }
@@ -894,15 +1314,16 @@ export default {
 
     const toggleUserStatus = async (user) => {
       try {
-        const newStatus = user.status === 'active' ? 'inactive' : 'active';
-        await UserService.updateUserStatus(user.id, newStatus);
+        // Inverser le statut actuel
+        const newActive = !user.active;
+        await UserService.updateUserStatus(user.id, newActive);
 
         // Mettre à jour le statut dans la liste
         const userIndex = filteredUsers.value.findIndex(
           (u) => u.id === user.id
         );
         if (userIndex !== -1) {
-          filteredUsers.value[userIndex].status = newStatus;
+          filteredUsers.value[userIndex].active = newActive;
         }
       } catch (error) {
         console.error(
@@ -1011,6 +1432,72 @@ export default {
       loadAuthors();
     };
 
+    // Méthodes pour les actions sur les éditeurs
+    const editEditor = (editor) => {
+      editorToEdit.value = { ...editor };
+    };
+
+    const deleteEditor = async (editor) => {
+      if (
+        confirm(`Voulez-vous vraiment supprimer l'éditeur "${editor.name}" ?`)
+      ) {
+        try {
+          await EditorService.deleteEditor(editor.id);
+          loadEditors(); // Recharger la liste des éditeurs
+        } catch (error) {
+          console.error("Erreur lors de la suppression de l'éditeur:", error);
+          alert("Une erreur est survenue lors de la suppression de l'éditeur.");
+        }
+      }
+    };
+
+    const onEditorAdded = () => {
+      // Recharger la liste des éditeurs après ajout
+      loadEditors();
+    };
+
+    const onEditorUpdated = () => {
+      // Recharger la liste des éditeurs après mise à jour
+      loadEditors();
+    };
+
+    // Méthodes pour les actions sur les séries
+    const editSeries = (series) => {
+      // À implémenter lorsque le service Series sera disponible
+      console.log('Édition de la série:', series);
+    };
+
+    const deleteSeries = async (series) => {
+      // À implémenter lorsque le service Series sera disponible
+      console.log('Suppression de la série:', series);
+    };
+
+    const onSeriesAdded = () => {
+      // À implémenter lorsque le service Series sera disponible
+      console.log('Nouvelle série ajoutée');
+    };
+
+    const onSeriesUpdated = () => {
+      // À implémenter lorsque le service Series sera disponible
+      console.log('Série mise à jour');
+    };
+
+    // Méthodes pour les actions sur les commentaires
+    const approveComment = async (comment) => {
+      // À implémenter lorsque le service Comment sera disponible
+      console.log('Approbation du commentaire:', comment);
+    };
+
+    const rejectComment = async (comment) => {
+      // À implémenter lorsque le service Comment sera disponible
+      console.log('Rejet du commentaire:', comment);
+    };
+
+    const deleteComment = async (comment) => {
+      // À implémenter lorsque le service Comment sera disponible
+      console.log('Suppression du commentaire:', comment);
+    };
+
     // Méthodes pour les actions sur les paramètres
     const saveGeneralSettings = async () => {
       try {
@@ -1077,43 +1564,46 @@ export default {
       }
     };
 
-    // Gérer les changements de section
-    watch(currentSection, (newSection) => {
-      // Charger les données appropriées selon la section
-      if (newSection === 'dashboard') {
-        loadDashboardData();
-      } else if (newSection === 'books') {
-        loadBooks();
-      } else if (newSection === 'orders') {
-        loadOrders();
-      } else if (newSection === 'users') {
-        loadUsers();
-      } else if (newSection === 'categories') {
-        loadCategories();
-      } else if (newSection === 'authors') {
-        loadAuthors();
-      } else if (newSection === 'settings') {
-        loadSettings();
-      }
+    // Navigation between sections
+    onMounted(() => {
+      // Charger les données initiales
+      console.log('Composant monté, chargement des données initiales');
+      loadDashboardData();
+      loadBooks();
+      loadUsers();
+      loadAuthors();
+      loadEditors();
+      loadCategories();
     });
 
-    // Initialisation lors du montage du composant
-    onMounted(() => {
-      // Charger les données de la section active
-      if (currentSection.value === 'dashboard') {
-        loadDashboardData();
-      } else if (currentSection.value === 'books') {
-        loadBooks();
-      } else if (currentSection.value === 'orders') {
-        loadOrders();
-      } else if (currentSection.value === 'users') {
-        loadUsers();
-      } else if (currentSection.value === 'categories') {
-        loadCategories();
-      } else if (currentSection.value === 'authors') {
-        loadAuthors();
-      } else if (currentSection.value === 'settings') {
-        loadSettings();
+    // Surveiller les changements de section pour charger les données appropriées
+    watch(currentSection, (newSection) => {
+      console.log('Section changée:', newSection);
+
+      // Charger les données spécifiques à la section
+      switch (newSection) {
+        case 'dashboard':
+          loadDashboardData();
+          break;
+        case 'books':
+          loadBooks();
+          break;
+        case 'users':
+          loadUsers();
+          break;
+        case 'authors':
+          loadAuthors();
+          break;
+        case 'editors':
+          loadEditors();
+          break;
+        case 'categories':
+          loadCategories();
+          break;
+        case 'settings':
+          loadSettings();
+          break;
+        // Autres sections si nécessaire
       }
     });
 
@@ -1133,6 +1623,9 @@ export default {
       categoryToEdit,
       showAddAuthorModal,
       authorToEdit,
+      showAddEditorModal,
+      editorToEdit,
+      showAddSeriesModal,
 
       // États pour les données
       filteredBooks,
@@ -1142,6 +1635,10 @@ export default {
       filteredAuthors,
       recentActivity,
       stats,
+      editors,
+      notifications,
+      series,
+      comments,
 
       // États pour les filtres
       bookFilters,
@@ -1239,6 +1736,23 @@ export default {
       onAuthorAdded,
       onAuthorUpdated,
 
+      // Fonctions pour les actions sur les éditeurs
+      editEditor,
+      deleteEditor,
+      onEditorAdded,
+      onEditorUpdated,
+
+      // Fonctions pour les actions sur les séries
+      editSeries,
+      deleteSeries,
+      onSeriesAdded,
+      onSeriesUpdated,
+
+      // Fonctions pour les actions sur les commentaires
+      approveComment,
+      rejectComment,
+      deleteComment,
+
       // Fonctions pour les actions sur les paramètres
       saveGeneralSettings,
       saveShippingSettings,
@@ -1247,7 +1761,6 @@ export default {
   },
 };
 </script>
-
 <style scoped>
 .admin-dashboard {
   display: grid;

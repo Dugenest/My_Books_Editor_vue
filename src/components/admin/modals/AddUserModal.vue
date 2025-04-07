@@ -10,6 +10,16 @@
 
       <div class="modal-body">
         <form @submit.prevent="handleSubmit">
+          <!-- Section Avatar -->
+          <div class="avatar-section">
+            <label>Avatar</label>
+            <AvatarUpload
+              :immediateUpload="false"
+              :showResetButton="false"
+              @file-selected="handleAvatarSelected"
+            />
+          </div>
+
           <div class="form-row">
             <div class="form-group">
               <label for="firstName">Prénom *</label>
@@ -94,21 +104,6 @@
             </div>
           </div>
 
-          <div class="form-group">
-            <label for="avatar">Avatar</label>
-            <div class="file-upload">
-              <input
-                type="file"
-                id="avatar"
-                @change="handleAvatarUpload"
-                accept="image/*"
-              />
-              <div v-if="avatarPreview" class="image-preview">
-                <img :src="avatarPreview" alt="Aperçu de l'avatar" />
-              </div>
-            </div>
-          </div>
-
           <div class="form-group switch-group">
             <label class="switch-label">
               <span>Statut</span>
@@ -141,10 +136,13 @@
 <script>
 import { ref, computed } from 'vue';
 import UserService from '@/services/UserService';
+import AvatarUpload from '@/components/AvatarUpload.vue';
 
 export default {
   name: 'AddUserModal',
-
+  components: {
+    AvatarUpload,
+  },
   emits: ['close', 'user-added'],
 
   setup(props, { emit }) {
@@ -163,7 +161,6 @@ export default {
     });
 
     const confirmPassword = ref('');
-    const avatarPreview = ref(null);
     const isSubmitting = ref(false);
 
     const passwordError = computed(() => {
@@ -188,12 +185,9 @@ export default {
       );
     });
 
-    const handleAvatarUpload = (event) => {
-      const file = event.target.files[0];
-      if (file) {
-        user.value.avatar = file;
-        avatarPreview.value = URL.createObjectURL(file);
-      }
+    const handleAvatarSelected = ({ file, preview }) => {
+      user.value.avatarFile = file;
+      user.value.avatarPreview = preview;
     };
 
     const handleSubmit = async () => {
@@ -202,21 +196,37 @@ export default {
       try {
         isSubmitting.value = true;
 
-        // Création d'un objet utilisateur complet
-        const userData = {
-          ...user.value,
-          first_name: user.value.firstName,
-          last_name: user.value.lastName,
-          subscribed_to_newsletter: false,
-        };
+        // Création d'un objet FormData pour l'envoi multipart si un avatar est sélectionné
+        if (user.value.avatarFile) {
+          const formData = new FormData();
 
-        console.log('Tentative de création utilisateur:', userData);
+          // Ajouter toutes les propriétés à formData
+          Object.keys(user.value).forEach((key) => {
+            if (key !== 'avatarFile' && key !== 'avatarPreview') {
+              formData.append(key, user.value[key]);
+            }
+          });
 
-        // Appel au service pour créer l'utilisateur
-        const response = await UserService.create(userData);
-        console.log('Utilisateur créé avec succès:', response.data);
+          // Ajouter le fichier avatar
+          formData.append('avatar', user.value.avatarFile);
 
-        emit('user-added', response.data);
+          console.log('Tentative de création utilisateur avec avatar');
+          const response = await UserService.createWithAvatar(formData);
+          emit('user-added', response.data);
+        } else {
+          // Création d'un objet utilisateur standard (sans avatar)
+          const userData = {
+            ...user.value,
+            first_name: user.value.firstName,
+            last_name: user.value.lastName,
+            subscribed_to_newsletter: false,
+          };
+
+          console.log('Tentative de création utilisateur:', userData);
+          const response = await UserService.create(userData);
+          emit('user-added', response.data);
+        }
+
         emit('close');
       } catch (error) {
         console.error("Erreur lors de l'ajout de l'utilisateur:", error);
@@ -231,11 +241,10 @@ export default {
     return {
       user,
       confirmPassword,
-      avatarPreview,
       isSubmitting,
       passwordError,
       isFormValid,
-      handleAvatarUpload,
+      handleAvatarSelected,
       handleSubmit,
     };
   },
@@ -290,6 +299,20 @@ export default {
 
 .modal-body {
   padding: 1.5rem;
+}
+
+.avatar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.avatar-section label {
+  margin-bottom: 1rem;
+  color: #666;
+  font-weight: 500;
+  align-self: center;
 }
 
 .form-group {

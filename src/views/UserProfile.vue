@@ -576,7 +576,22 @@ export default {
       submitting.value = true;
 
       try {
-        await UserService.updateUserProfile(profileData);
+        // Créer un FormData pour l'envoi multipart
+        const formData = new FormData();
+
+        // IMPORTANT: utiliser 'userData' comme nom de paramètre - c'est ce que le backend attend
+        formData.append('userData', JSON.stringify(profileData));
+
+        // Ajouter le fichier avatar si présent
+        if (profileData.avatarFile) {
+          formData.append('avatarFile', profileData.avatarFile);
+        }
+
+        // Récupérer l'ID de l'utilisateur depuis le profil ou le store
+        const userId = profileData.id; // Ou obtenez-le depuis votre store Vuex
+
+        // Utiliser la méthode updateUserProfile du service
+        await UserService.updateUserProfile(userId, formData);
 
         // Mise à jour des données originales
         originalProfile.value = JSON.parse(JSON.stringify(profileData));

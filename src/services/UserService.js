@@ -1,166 +1,109 @@
 import api from './api';
 
 class UserService {
-  constructor() {
-    this.api = api;
+  // Récupérer tous les utilisateurs
+  getAllUsers() {
+    return api.get('/users');
   }
 
-  /**
-   * Récupère tous les utilisateurs avec pagination et filtres
-   * @param {Object} params - Paramètres de la requête
-   * @param {number} params.page - Numéro de la page (commence à 0)
-   * @param {number} params.size - Nombre d'éléments par page
-   * @param {string} params.sort - Champ et direction de tri (ex: "lastName,asc")
-   * @param {string} params.search - Terme de recherche
-   * @returns {Promise} - Promesse contenant les données des utilisateurs
-   */
-  async getUsers(params = {}) {
-    try {
-      console.log(
-        '🔍 Tentative de récupération des utilisateurs avec params:',
-        params
-      );
-      const response = await this.api.get('/users', { params });
-      console.log(
-        '✅ Données des utilisateurs récupérées avec succès:',
-        response.data
-      );
-      return response;
-    } catch (error) {
-      console.error(
-        '❌ Erreur lors de la récupération des utilisateurs:',
-        error
-      );
-      console.error('Message:', error.message);
-      console.error('Status:', error.response?.status);
-      console.error('Data:', error.response?.data);
-
-      // Retourner une réponse vide pour éviter de bloquer l'interface
-      return { data: { content: [], totalElements: 0, totalPages: 1 } };
-    }
+  // Récupérer un utilisateur par son ID
+  getUserById(id) {
+    return api.get(`/users/${id}`);
   }
 
-  /**
-   * Récupère tous les utilisateurs
-   * @returns {Promise} - Promesse contenant les données des utilisateurs
-   */
-  getAll() {
-    return this.api.get('/users');
+  // Récupérer l'utilisateur connecté
+  getCurrentUser() {
+    return api.get('/users/me');
   }
 
-  /**
-   * Récupère un utilisateur par son ID
-   * @param {number} id - ID de l'utilisateur
-   * @returns {Promise} - Promesse contenant les données de l'utilisateur
-   */
-  async get(id) {
-    try {
-      console.log("🔍 Tentative de récupération de l'utilisateur:", id);
-      const response = await this.api.get(`/users/${id}`);
-      console.log(
-        "✅ Données de l'utilisateur récupérées avec succès:",
-        response.data
-      );
-      return response;
-    } catch (error) {
-      console.error(
-        "❌ Erreur lors de la récupération de l'utilisateur:",
-        error
-      );
-      throw error;
-    }
+  // Créer un nouvel utilisateur
+  create(userData) {
+    return api.post('/users', userData);
   }
 
-  /**
-   * Crée un nouvel utilisateur
-   * @param {Object} userData - Données de l'utilisateur
-   * @returns {Promise} - Promesse contenant les données de l'utilisateur créé
-   */
-  async create(userData) {
-    try {
-      console.log("🔍 Tentative de création d'un utilisateur:", userData);
-      const response = await this.api.post('/users', userData);
-      console.log('✅ Utilisateur créé avec succès:', response.data);
-      return response;
-    } catch (error) {
-      console.error("❌ Erreur lors de la création de l'utilisateur:", error);
-      throw error;
-    }
+  // Créer un utilisateur avec un avatar
+  createWithAvatar(formData) {
+    return api.post('/users', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
   }
 
-  /**
-   * Met à jour un utilisateur existant
-   * @param {number} id - ID de l'utilisateur
-   * @param {Object} userData - Nouvelles données de l'utilisateur
-   * @returns {Promise} - Promesse contenant les données de l'utilisateur mis à jour
-   */
-  async update(id, userData) {
-    try {
-      console.log("🔍 Tentative de mise à jour de l'utilisateur:", id);
-      console.log('🔍 Données envoyées:', userData);
+  // Mettre à jour un utilisateur
+  update(id, userData) {
+    return api.put(`/users/${id}`, userData);
+  }
 
-      // Assurez-vous que registrationDate est préservé
-      if (!userData.registrationDate && userData.createdAt) {
-        userData.registrationDate = userData.createdAt;
+  // Mettre à jour un utilisateur et son avatar
+  updateWithAvatar(id, userData, avatarFile = null) {
+    // Mettre d'abord à jour les informations de l'utilisateur
+    return this.update(id, userData).then((response) => {
+      // Si pas d'avatar à mettre à jour, retourner simplement la réponse
+      if (!avatarFile) {
+        return response;
       }
 
-      const response = await this.api.put(`/users/${id}`, userData);
-      console.log('✅ Utilisateur mis à jour avec succès:', response.data);
-      return response;
-    } catch (error) {
-      console.error(
-        "❌ Erreur lors de la mise à jour de l'utilisateur:",
-        error
-      );
-      throw error;
-    }
+      // Sinon, mettre à jour l'avatar séparément
+      return this.updateAvatar(id, avatarFile).then((avatarResponse) => {
+        // Combiner les données de l'utilisateur avec les données de l'avatar
+        response.data.avatar = avatarResponse.data.avatar;
+        return response;
+      });
+    });
   }
 
-  /**
-   * Supprime un utilisateur
-   * @param {number} id - ID de l'utilisateur à supprimer
-   * @returns {Promise} - Promesse contenant la réponse du serveur
-   */
-  async delete(id) {
-    try {
-      console.log("🔍 Tentative de suppression de l'utilisateur:", id);
-      const response = await this.api.delete(`/users/${id}`);
-      console.log('✅ Utilisateur supprimé avec succès:', response.data);
-      return response;
-    } catch (error) {
-      console.error(
-        "❌ Erreur lors de la suppression de l'utilisateur:",
-        error
-      );
-      throw error;
-    }
+  // Changer le mot de passe d'un utilisateur
+  changePassword(id, passwordData) {
+    return api.put(`/users/${id}/password`, passwordData);
   }
 
-  /**
-   * Met à jour le statut d'un utilisateur
-   * @param {number} id - ID de l'utilisateur
-   * @param {boolean} active - Nouveau statut de l'utilisateur
-   * @returns {Promise} - Promesse contenant les données de l'utilisateur mis à jour
-   */
-  async updateUserStatus(id, active) {
-    try {
-      console.log(
-        "🔍 Tentative de mise à jour du statut de l'utilisateur:",
-        id
-      );
-      const response = await this.api.put(`/users/${id}/status`, { active });
-      console.log(
-        "✅ Statut de l'utilisateur mis à jour avec succès:",
-        response.data
-      );
-      return response;
-    } catch (error) {
-      console.error(
-        "❌ Erreur lors de la mise à jour du statut de l'utilisateur:",
-        error
-      );
-      throw error;
-    }
+  // Supprimer un utilisateur
+  delete(id) {
+    return api.delete(`/users/${id}`);
+  }
+
+  // récupérer les utilisateurs avec pagination
+  getUsers(params = {}) {
+    return api.get('/users', { params });
+  }
+
+  // Récupérer le profil de l'utilisateur
+  getUserProfile() {
+    return api.get('/users/profile');
+  }
+
+  // Méthode pour mettre à jour l'avatar
+  updateAvatar(id, avatarFile) {
+    const formData = new FormData();
+    formData.append('avatar', avatarFile);
+
+    // Utiliser POST au lieu de PUT pour l'avatar
+    return api.post(`/users/${id}/avatar`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  }
+
+  // Méthode pour réinitialiser l'avatar
+  resetAvatar(id) {
+    return api.delete(`/users/${id}/avatar`);
+  }
+
+  // Mettre à jour le profil utilisateur
+  updateUserProfile(id, formData) {
+    return api.put(`/users/${id}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  }
+
+  // Mettre à jour le statut d'un utilisateur
+  // Ensure your endpoint is correctly defined
+  updateUserStatus(userId, status) {
+    return api.put(`/users/${userId}/status`, { active: status });
   }
 }
 

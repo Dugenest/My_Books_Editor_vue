@@ -368,13 +368,26 @@ export default {
     const fetchCategories = async () => {
       try {
         const data = await CategoryService.getCategories();
-        // Vérifier si data est un tableau ou une réponse axios
-        categories.value = Array.isArray(data) ? data : data.data || [];
-        console.log('Catégories chargées:', categories.value);
+
+        // Logs détaillés
+        console.log('Données des catégories brutes:', data);
+
+        // Extraction des catégories
+        let extractedCategories = [];
+
+        if (Array.isArray(data)) {
+          extractedCategories = data;
+        } else if (data && data.content && Array.isArray(data.content)) {
+          extractedCategories = data.content;
+        } else if (data && data.data && Array.isArray(data.data)) {
+          extractedCategories = data.data;
+        }
+
+        console.log('Catégories extraites:', extractedCategories);
+        categories.value = extractedCategories;
       } catch (error) {
         console.error('Erreur lors du chargement des catégories:', error);
-        errors.value.push('Impossible de charger la liste des catégories');
-        categories.value = []; // Initialiser avec un tableau vide en cas d'erreur
+        categories.value = [];
       }
     };
 

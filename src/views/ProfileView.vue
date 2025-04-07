@@ -15,13 +15,13 @@
       <!-- En-tête du profil -->
       <div class="profile-header">
         <div class="profile-avatar">
-          <img
-            v-if="user.avatar"
-            :src="user.avatar"
-            alt="Avatar de l'utilisateur"
-            class="avatar-image"
+          <AvatarUpload
+            :userId="user.id"
+            :currentAvatar="user.avatar"
+            :immediateUpload="true"
+            @update="handleAvatarUpdate"
+            @error="handleAvatarError"
           />
-          <i v-else class="fas fa-user-circle"></i>
         </div>
         <div class="profile-info">
           <h1>{{ user.firstName }} {{ user.lastName }}</h1>
@@ -344,9 +344,13 @@
 import api from '@/services/api';
 import { onMounted, reactive, ref } from 'vue';
 import { useStore } from 'vuex';
+import AvatarUpload from '@/components/AvatarUpload.vue';
 
 export default {
   name: 'ProfileView',
+  components: {
+    AvatarUpload,
+  },
 
   setup() {
     const store = useStore();
@@ -565,10 +569,10 @@ export default {
           // Champs spécifiques pour nationality et birthDate
           nationality: editedUser.nationality || null,
           birthDate: editedUser.birthDate
-            ? new Date(editedUser.birthDate)
+            ? new Date(editedUser.birthDate).getTime()
             : null,
           birth_date: editedUser.birthDate
-            ? new Date(editedUser.birthDate)
+            ? new Date(editedUser.birthDate).getTime()
             : null,
 
           // Préférences
@@ -767,6 +771,17 @@ export default {
       return icons[notification.type] || icons.info;
     };
 
+    // Gérer la mise à jour de l'avatar
+    const handleAvatarUpdate = (updatedUser) => {
+      user.value = { ...user.value, ...updatedUser };
+      showNotification('Votre avatar a été mis à jour avec succès', 'success');
+    };
+
+    // Gérer les erreurs d'avatar
+    const handleAvatarError = (error) => {
+      showNotification(error, 'error');
+    };
+
     // Initialiser le composant
     onMounted(fetchUserProfile);
 
@@ -801,6 +816,8 @@ export default {
       showNotification,
       closeNotification,
       getNotificationIcon,
+      handleAvatarUpdate,
+      handleAvatarError,
     };
   },
 };
@@ -880,8 +897,8 @@ export default {
 .profile-avatar {
   font-size: 4rem;
   color: #3f51b5;
-  width: 100px;
-  height: 100px;
+  width: 120px;
+  height: 120px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -891,10 +908,31 @@ export default {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.profile-avatar img {
+.profile-avatar :deep(.avatar-preview) {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+.profile-avatar :deep(.avatar-image) {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.profile-avatar :deep(.avatar-overlay) {
+  background-color: rgba(0, 0, 0, 0.6);
+}
+
+.profile-avatar :deep(.avatar-overlay span) {
+  font-size: 0.8rem;
+}
+
+.profile-avatar :deep(.avatar-actions) {
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .profile-info h1 {

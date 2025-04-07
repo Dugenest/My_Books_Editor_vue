@@ -101,7 +101,7 @@
             </td>
             <td>
               <img
-                :src="user.avatar || '/default-avatar.png'"
+                :src="formatAvatarUrl(user.avatar)"
                 :alt="user.username"
                 class="user-avatar"
               />
@@ -302,6 +302,34 @@ export default {
       return statusMap[status] || status;
     };
 
+    const formatAvatarUrl = (avatarPath) => {
+      if (!avatarPath) {
+        // Si pas d'avatar, utiliser l'avatar par défaut du serveur
+        return 'http://localhost:8111/assets/default-avatar.png';
+      }
+
+      // Si c'est déjà une URL complète
+      if (avatarPath.startsWith('http')) {
+        return avatarPath;
+      }
+
+      // Sinon, construire l'URL complète
+      const apiUrl = 'http://localhost:8111';
+
+      // Si le chemin commence par /
+      if (avatarPath.startsWith('/')) {
+        return `${apiUrl}${avatarPath}`;
+      }
+
+      // Si le chemin est du format "avatars/xxx.png"
+      if (avatarPath.startsWith('avatars/')) {
+        return `${apiUrl}/uploads/${avatarPath}`;
+      }
+
+      // Dans tous les autres cas
+      return `${apiUrl}/${avatarPath}`;
+    };
+
     return {
       localUserFilters,
       localSelectedUsers,
@@ -313,6 +341,7 @@ export default {
       getSortIcon,
       formatDate,
       getUserStatus,
+      formatAvatarUrl,
     };
   },
 };

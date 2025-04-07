@@ -10,6 +10,17 @@
 
       <div class="modal-body">
         <form @submit.prevent="handleSubmit">
+          <!-- Section Avatar -->
+          <div class="avatar-section">
+            <label>Avatar</label>
+            <AvatarUpload
+              :currentAvatar="editedUser.avatar"
+              :immediateUpload="false"
+              @file-selected="handleAvatarSelected"
+              @reset="handleAvatarReset"
+            />
+          </div>
+
           <div class="form-row">
             <div class="form-group">
               <label for="firstName">Prénom *</label>
@@ -115,34 +126,6 @@
             </select>
           </div>
 
-          <div class="form-group">
-            <label for="avatar">Avatar</label>
-            <div
-              class="current-avatar"
-              v-if="editedUser.avatar && !avatarPreview"
-            >
-              <img :src="editedUser.avatar" alt="Avatar actuel" />
-              <button
-                type="button"
-                class="btn-remove-avatar"
-                @click="removeCurrentAvatar"
-              >
-                <i class="fas fa-trash-alt"></i>
-              </button>
-            </div>
-            <div class="file-upload">
-              <input
-                type="file"
-                id="avatar"
-                @change="handleAvatarUpload"
-                accept="image/*"
-              />
-              <div v-if="avatarPreview" class="image-preview">
-                <img :src="avatarPreview" alt="Aperçu de l'avatar" />
-              </div>
-            </div>
-          </div>
-
           <div class="form-group switch-group">
             <label class="switch-label">
               <span>Statut</span>
@@ -183,10 +166,12 @@
 <script>
 import { ref, computed, onMounted } from 'vue';
 import UserService from '@/services/UserService';
-
+import AvatarUpload from '@/components/AvatarUpload.vue';
 export default {
   name: 'EditUserModal',
-
+  components: {
+    AvatarUpload,
+  },
   props: {
     user: {
       type: Object,
@@ -199,10 +184,11 @@ export default {
   setup(props, { emit }) {
     const editedUser = ref({});
     const confirmPassword = ref('');
-    const avatarPreview = ref(null);
     const isSubmitting = ref(false);
     const changePassword = ref(false);
     const formError = ref('');
+    const avatarChanged = ref(false);
+    const avatarResetRequested = ref(false);
 
     onMounted(() => {
       // Copier les valeurs de l'utilisateur pour éviter de modifier l'objet original
@@ -218,6 +204,7 @@ export default {
         phone: props.user.phone || '',
         role: props.user.role || 'USER',
         active: props.user.active !== undefined ? props.user.active : true,
+        avatar: props.user.avatar || '',
         password: '',
       };
 
@@ -253,17 +240,18 @@ export default {
       return basicValidation;
     });
 
-    const handleAvatarUpload = (event) => {
-      const file = event.target.files[0];
-      if (file) {
-        editedUser.value.newAvatar = file;
-        avatarPreview.value = URL.createObjectURL(file);
-      }
+    const handleAvatarSelected = ({ file, preview }) => {
+      editedUser.value.avatarFile = file;
+      editedUser.value.avatarPreview = preview;
+      avatarChanged.value = true;
+      avatarResetRequested.value = false;
     };
 
-    const removeCurrentAvatar = () => {
-      editedUser.value.avatar = null;
-      editedUser.value.avatarRemoved = true;
+    const handleAvatarReset = () => {
+      editedUser.value.avatarFile = null;
+      editedUser.value.avatarPreview = null;
+      avatarChanged.value = true;
+      avatarResetRequested.value = true;
     };
 
     const handleSubmit = async () => {
@@ -273,7 +261,7 @@ export default {
       isSubmitting.value = true;
 
       try {
-        // Préparation des données à envoyer
+        // Clone user data to prevent reactivity issues
         const userData = { ...editedUser.value };
 
         // Ne pas inclure le mot de passe si non modifié
@@ -281,49 +269,32 @@ export default {
           delete userData.password;
         }
 
-        // Si l'avatar a été modifié, créer un FormData
-        if (userData.newAvatar || userData.avatarRemoved) {
-          const formData = new FormData();
+        // Remove avatar-related fields from userData
+        delete userData.avatarFile;
+        delete userData.avatarPreview;
 
-          // Ajouter toutes les propriétés à formData
-          Object.keys(userData).forEach((key) => {
-            if (key !== 'newAvatar' && key !== 'avatar') {
-              formData.append(key, userData[key]);
-            }
-          });
-
-          if (userData.newAvatar) {
-            formData.append('avatar', userData.newAvatar);
-          }
-
-          // Appel au service avec FormData
-          const response = await UserService.updateWithAvatar(
-            userData.id,
-            formData
+        let response;
+        if (avatarChanged.value) {
+          // If avatar has changed, use updateWithAvatar with the file
+          response = await UserService.updateWithAvatar(
+            editedUser.value.id,
+            userData,
+            editedUser.value.avatarFile
           );
-          console.log('Réponse de mise à jour avec avatar:', response);
         } else {
-          // Appel standard au service
-          const response = await UserService.update(userData.id, userData);
-          console.log('Réponse de mise à jour:', response);
+          // Otherwise use regular update
+          response = await UserService.update(editedUser.value.id, userData);
         }
 
-        emit('user-updated', userData);
+        emit('user-updated', response.data);
         emit('close');
+        console.log('Réponse de mise à jour:', response);
       } catch (error) {
         console.error(
           "Erreur lors de la modification de l'utilisateur:",
           error
         );
-
-        if (error.response && error.response.data) {
-          formError.value =
-            error.response.data.message ||
-            'Une erreur est survenue lors de la mise à jour';
-        } else {
-          formError.value =
-            'Une erreur est survenue lors de la communication avec le serveur';
-        }
+        formError.value = "Erreur lors de la mise à jour de l'utilisateur";
       } finally {
         isSubmitting.value = false;
       }
@@ -332,14 +303,13 @@ export default {
     return {
       editedUser,
       confirmPassword,
-      avatarPreview,
       isSubmitting,
       changePassword,
       formError,
       passwordError,
       isFormValid,
-      handleAvatarUpload,
-      removeCurrentAvatar,
+      handleAvatarSelected,
+      handleAvatarReset,
       handleSubmit,
     };
   },
@@ -394,6 +364,20 @@ export default {
 
 .modal-body {
   padding: 1.5rem;
+}
+
+.avatar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.avatar-section label {
+  margin-bottom: 1rem;
+  color: #666;
+  font-weight: 500;
+  align-self: center;
 }
 
 .form-group {
@@ -458,54 +442,6 @@ export default {
 
 .btn-link:hover {
   color: #303f9f;
-}
-
-.current-avatar {
-  position: relative;
-  margin-bottom: 1rem;
-  display: inline-block;
-}
-
-.current-avatar img {
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.btn-remove-avatar {
-  position: absolute;
-  top: 0;
-  right: 0;
-  background-color: rgba(255, 255, 255, 0.8);
-  border: none;
-  border-radius: 50%;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: #d32f2f;
-}
-
-.file-upload {
-  border: 1px dashed #ddd;
-  padding: 1rem;
-  border-radius: 4px;
-  text-align: center;
-}
-
-.image-preview {
-  margin-top: 1rem;
-  text-align: center;
-}
-
-.image-preview img {
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  object-fit: cover;
 }
 
 .switch-group {

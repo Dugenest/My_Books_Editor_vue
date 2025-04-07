@@ -1341,7 +1341,7 @@ export default {
         confirm(`Voulez-vous vraiment supprimer l'utilisateur "${user.name}" ?`)
       ) {
         try {
-          await UserService.deleteUser(user.id);
+          await UserService.delete(user.id); // <-- Fix: use user.id instead of userId
           loadUsers(); // Recharger la liste des utilisateurs
         } catch (error) {
           console.error(

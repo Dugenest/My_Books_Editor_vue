@@ -294,6 +294,29 @@ class BookService {
   updateBookStock(id, quantity) {
     return api.patch(`/books/${id}/stock`, { quantity });
   }
+
+  /**
+   * Récupère l'URL de l'image de couverture d'un livre
+   * @param {string} imagePath - Chemin ou nom de l'image
+   * @returns {string} - URL formatée de l'image
+   */
+  getBookCoverUrl(imagePath) {
+    // Si aucune image n'est définie
+    if (!imagePath || typeof imagePath !== 'string') {
+      try {
+        return require('@/assets/images/default-cover.jpg');
+      } catch (error) {
+        console.error(
+          "Erreur lors du chargement de l'image par défaut:",
+          error
+        );
+        return ''; // Retourner une chaîne vide en cas d'erreur
+      }
+    }
+
+    // L'image a été trouvée dans la BDD
+    return `/api/uploads/book-covers/${imagePath.split('/').pop()}`;
+  }
 }
 
 export default new BookService();

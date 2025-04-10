@@ -143,7 +143,11 @@
               <img :src="imagePreview" alt="Aperçu de l'image" />
             </div>
             <div v-else-if="bookCopy.picture" class="image-preview">
-              <img :src="bookCopy.picture" alt="Couverture actuelle" />
+              <img
+                :src="getBookImageUrl(bookCopy.picture)"
+                alt="Couverture actuelle"
+                @error="handleImageError"
+              />
               <p class="existing-image-note">Image actuelle</p>
             </div>
           </div>
@@ -356,9 +360,24 @@ export default {
 
     // Récupérer les catégories
     const fetchCategories = async () => {
+      console.log('🔍 Démarrage de fetchCategories dans EditBookModal');
+      console.log(
+        '📋 Catégories déjà sélectionnées:',
+        selectedCategories.value
+      );
+
       try {
+        console.log('📡 Appel de CategoryService.getCategories()');
         const response = await CategoryService.getCategories();
-        console.log('Réponse brute du service des catégories:', response);
+        console.log('📥 Réponse brute du service des catégories:', response);
+        console.log('📝 Type de la réponse:', typeof response);
+        console.log('🔍 Structure de la réponse:', {
+          hasData: !!response?.data,
+          dataType: typeof response?.data,
+          isArray: Array.isArray(response?.data),
+          responseIsDirect: Array.isArray(response),
+          contentProperty: response?.data?.content ? 'exists' : 'missing',
+        });
 
         if (response) {
           // La source des catégories
@@ -366,16 +385,20 @@ export default {
 
           // Vérifier toutes les possibilités
           if (response.data && Array.isArray(response.data)) {
+            console.log('📦 Utilisation de response.data (Array)');
             categoriesSource = response.data;
           } else if (
             response.data &&
             response.data.content &&
             Array.isArray(response.data.content)
           ) {
+            console.log('📦 Utilisation de response.data.content (Array)');
             categoriesSource = response.data.content;
           } else if (Array.isArray(response)) {
+            console.log('📦 Utilisation de response directement (Array)');
             categoriesSource = response;
           } else if (response.content && Array.isArray(response.content)) {
+            console.log('📦 Utilisation de response.content (Array)');
             categoriesSource = response.content;
           }
 
@@ -384,6 +407,26 @@ export default {
             console.log(
               '✅ Catégories chargées avec succès:',
               categories.value.length
+            );
+            console.log('📋 Liste des catégories:', categories.value);
+
+            // Vérifier si les catégories précédemment sélectionnées existent
+            // toujours dans les catégories chargées
+            const validCategoryIds = categories.value.map((cat) => cat.id);
+            console.log('🔍 IDs de catégories valides:', validCategoryIds);
+            console.log(
+              '🔍 IDs de catégories sélectionnées avant filtrage:',
+              selectedCategories.value
+            );
+
+            // Filtrer les IDs de catégories sélectionnées pour ne garder que ceux qui existent
+            selectedCategories.value = selectedCategories.value.filter((id) =>
+              validCategoryIds.includes(id)
+            );
+
+            console.log(
+              '📋 Catégories sélectionnées après filtrage:',
+              selectedCategories.value
             );
           } else {
             console.warn('⚠️ Aucune catégorie trouvée dans la réponse');
@@ -397,6 +440,14 @@ export default {
         }
       } catch (error) {
         console.error('❌ Erreur lors du chargement des catégories:', error);
+        console.error("Message d'erreur:", error.message);
+        console.error('Stack trace:', error.stack);
+
+        if (error.response) {
+          console.error('Statut HTTP:', error.response.status);
+          console.error('Données de réponse:', error.response.data);
+        }
+
         errors.value.push(
           'Impossible de charger la liste des catégories: ' +
             (error.message || 'Erreur inconnue')
@@ -468,6 +519,27 @@ export default {
       }
     };
 
+    // Formatage de l'URL d'image
+    const getBookImageUrl = (imagePath) => {
+      return BookService.getBookCoverUrl(imagePath);
+    };
+
+    // Gérer les erreurs d'image
+    const handleImageError = (e) => {
+      console.error("Erreur de chargement d'image:", e.target.src);
+      // Afficher une image par défaut ou une lettre initiale
+      e.target.style.display = 'none';
+      const parentContainer = e.target.closest('.image-preview');
+
+      if (parentContainer && !parentContainer.querySelector('.default-cover')) {
+        const defaultDiv = document.createElement('div');
+        defaultDiv.className = 'default-cover';
+        defaultDiv.innerHTML =
+          '<i class="fas fa-book"></i><span>Image non disponible</span>';
+        parentContainer.prepend(defaultDiv);
+      }
+    };
+
     // Soumission du formulaire
     const handleSubmit = async () => {
       errors.value = [];
@@ -511,7 +583,7 @@ export default {
           typeof bookCopy.value.picture !== 'string'
         ) {
           const imageFormData = new FormData();
-          imageFormData.append('picture', bookCopy.value.picture);
+          imageFormData.append('file', bookCopy.value.picture);
           await BookService.uploadBookImage(bookCopy.value.id, imageFormData);
         }
 
@@ -546,6 +618,8 @@ export default {
       handleImageUpload,
       handleSubmit,
       validateForm,
+      getBookImageUrl,
+      handleImageError,
     };
   },
 };

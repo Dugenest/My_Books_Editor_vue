@@ -72,7 +72,11 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="book in books" :key="book.id">
+          <tr
+            v-for="book in books"
+            :key="book.id"
+            @click="$emit('book-selected', book)"
+          >
             <td>
               <input
                 type="checkbox"
@@ -81,12 +85,19 @@
                 @change="updateSelection"
               />
             </td>
-            <td>
-              <img
-                :src="book.coverImage || '/default-cover.png'"
-                :alt="book.title"
-                class="book-thumbnail"
-              />
+            <td class="thumbnail-cell">
+              <div class="book-thumbnail">
+                <template v-if="book.picture">
+                  <img
+                    :src="getBookCoverUrl(book)"
+                    @error="handleImageError"
+                    :alt="book.title"
+                  />
+                </template>
+                <div v-else class="default-cover">
+                  {{ book.title ? book.title.charAt(0).toUpperCase() : 'L' }}
+                </div>
+              </div>
             </td>
             <td>{{ book.title }}</td>
             <td>{{ book.author }}</td>
@@ -158,6 +169,8 @@
 
 <script>
 import { ref, watch } from 'vue';
+import BookService from '@/services/BookService';
+import defaultCoverImage from '@/assets/images/default-cover.jpg';
 
 export default {
   name: 'BooksSection',
@@ -202,6 +215,7 @@ export default {
     'delete',
     'add',
     'selection-change',
+    'book-selected',
   ],
 
   setup(props, { emit }) {
@@ -270,6 +284,43 @@ export default {
       return 'in-stock';
     };
 
+    const getBookCoverUrl = (book) => {
+      if (!book.picture) {
+        return defaultCoverImage;
+      }
+      return BookService.getBookCoverUrl(book.picture);
+    };
+
+    const handleImageError = (e) => {
+      // En cas d'erreur, utiliser l'image par défaut importée
+      try {
+        e.target.src = defaultCoverImage;
+      } catch (error) {
+        // Si l'image par défaut n'est pas disponible, cacher l'image et afficher une lettre
+        e.target.style.display = 'none';
+
+        // Obtenir le parent
+        const parentElement = e.target.parentElement;
+
+        // Vérifier si la div default-cover n'existe pas déjà
+        if (!parentElement.querySelector('.default-cover')) {
+          // Créer un div avec la première lettre
+          const initialDiv = document.createElement('div');
+          initialDiv.className = 'default-cover';
+
+          // Obtenir le titre du livre depuis l'attribut alt
+          const bookTitle = e.target.alt || 'Livre';
+          initialDiv.textContent = bookTitle.charAt(0).toUpperCase();
+
+          // Ajouter le div au parent
+          parentElement.appendChild(initialDiv);
+        }
+      }
+
+      // Éviter les boucles infinies
+      e.target.onerror = null;
+    };
+
     return {
       localBookFilters,
       localSelectedBooks,
@@ -281,6 +332,8 @@ export default {
       getSortIcon,
       formatPrice,
       getStockStatus,
+      getBookCoverUrl,
+      handleImageError,
     };
   },
 };
@@ -368,10 +421,29 @@ export default {
 }
 
 .book-thumbnail {
-  width: 40px;
-  height: 60px;
-  object-fit: cover;
+  width: 60px;
+  height: 80px;
+  overflow: hidden;
   border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.book-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.book-thumbnail .default-cover {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #e0e0e0;
+  color: #666;
+  font-size: 1.5rem;
+  font-weight: bold;
 }
 
 .stock-badge {

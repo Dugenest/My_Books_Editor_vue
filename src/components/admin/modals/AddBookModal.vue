@@ -367,26 +367,99 @@ export default {
 
     const fetchCategories = async () => {
       try {
-        const data = await CategoryService.getCategories();
+        console.log('🔍 Début du chargement des catégories...');
+        const response = await CategoryService.getCategories();
 
         // Logs détaillés
-        console.log('Données des catégories brutes:', data);
+        console.log('📥 Réponse brute des catégories:', response);
+        console.log('📊 Type de la réponse:', typeof response);
+        console.log('🔍 Structure de la réponse:', {
+          hasData: !!response?.data,
+          dataType: typeof response?.data,
+          isArray: Array.isArray(response?.data),
+          responseIsDirect: Array.isArray(response),
+          contentProperty: response?.data?.content ? 'exists' : 'missing',
+        });
 
         // Extraction des catégories
         let extractedCategories = [];
 
-        if (Array.isArray(data)) {
-          extractedCategories = data;
-        } else if (data && data.content && Array.isArray(data.content)) {
-          extractedCategories = data.content;
-        } else if (data && data.data && Array.isArray(data.data)) {
-          extractedCategories = data.data;
+        if (Array.isArray(response)) {
+          console.log('📦 Utilisation de response directement (Array)');
+          extractedCategories = response;
+        } else if (response && response.data) {
+          if (Array.isArray(response.data)) {
+            console.log('📦 Utilisation de response.data (Array)');
+            extractedCategories = response.data;
+          } else if (
+            response.data.content &&
+            Array.isArray(response.data.content)
+          ) {
+            console.log('📦 Utilisation de response.data.content (Array)');
+            extractedCategories = response.data.content;
+          }
+        } else if (
+          response &&
+          response.content &&
+          Array.isArray(response.content)
+        ) {
+          console.log('📦 Utilisation de response.content (Array)');
+          extractedCategories = response.content;
         }
 
-        console.log('Catégories extraites:', extractedCategories);
+        console.log('📋 Catégories extraites:', extractedCategories);
+
+        // Si aucune catégorie n'est extraite, essayer d'autres approches
+        if (!extractedCategories.length && response) {
+          console.log(
+            '⚠️ Aucune catégorie trouvée avec les méthodes standard, tentative de récupération alternative'
+          );
+
+          // Parcourir toutes les propriétés pour chercher un tableau
+          if (typeof response === 'object' && response !== null) {
+            for (const key in response) {
+              if (Array.isArray(response[key])) {
+                console.log(`📦 Trouvé un tableau dans response.${key}`);
+                extractedCategories = response[key];
+                break;
+              } else if (
+                response[key] &&
+                typeof response[key] === 'object' &&
+                Array.isArray(response[key].content)
+              ) {
+                console.log(
+                  `📦 Trouvé un tableau dans response.${key}.content`
+                );
+                extractedCategories = response[key].content;
+                break;
+              }
+            }
+          }
+        }
+
         categories.value = extractedCategories;
+        console.log('✅ Catégories finales chargées:', categories.value);
+
+        if (categories.value.length === 0) {
+          console.warn("⚠️ Aucune catégorie n'a été chargée!");
+          errors.value.push(
+            "Aucune catégorie n'a pu être chargée. Veuillez réessayer."
+          );
+        }
       } catch (error) {
-        console.error('Erreur lors du chargement des catégories:', error);
+        console.error('❌ Erreur lors du chargement des catégories:', error);
+        console.error("📄 Message d'erreur:", error.message);
+        console.error('📄 Stack trace:', error.stack);
+
+        if (error.response) {
+          console.error('📄 Statut HTTP:', error.response.status);
+          console.error('📄 Données de réponse:', error.response.data);
+        }
+
+        errors.value.push(
+          'Impossible de charger les catégories: ' +
+            (error.message || 'Erreur inconnue')
+        );
         categories.value = [];
       }
     };

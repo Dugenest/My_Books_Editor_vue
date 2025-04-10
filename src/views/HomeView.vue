@@ -38,12 +38,21 @@
       <div v-else class="books-carousel">
         <div v-for="book in newReleases" :key="book.id" class="book-card">
           <div class="book-image">
-            <div v-if="book.coverImage" class="image-container">
-              <img :src="book.coverImage" :alt="book.title" />
-            </div>
+            <template
+              v-if="book.picture && testImageAvailability(book.picture)"
+            >
+              <div class="image-container">
+                <img
+                  :src="getBookImageUrl(book.picture)"
+                  :alt="book.title"
+                  @error="handleImageError"
+                />
+              </div>
+            </template>
             <div v-else class="default-cover">
-              <i class="fas fa-book"></i>
-              <span class="book-title-placeholder">{{ book.title }}</span>
+              <span>{{
+                book.title ? book.title.charAt(0).toUpperCase() : 'L'
+              }}</span>
             </div>
           </div>
           <div class="book-info">
@@ -89,12 +98,21 @@
       <div v-else class="books-carousel">
         <div v-for="book in popularBooks" :key="book.id" class="book-card">
           <div class="book-image">
-            <div v-if="book.coverImage" class="image-container">
-              <img :src="book.coverImage" :alt="book.title" />
-            </div>
+            <template
+              v-if="book.picture && testImageAvailability(book.picture)"
+            >
+              <div class="image-container">
+                <img
+                  :src="getBookImageUrl(book.picture)"
+                  :alt="book.title"
+                  @error="handleImageError"
+                />
+              </div>
+            </template>
             <div v-else class="default-cover">
-              <i class="fas fa-book"></i>
-              <span class="book-title-placeholder">{{ book.title }}</span>
+              <span>{{
+                book.title ? book.title.charAt(0).toUpperCase() : 'L'
+              }}</span>
             </div>
           </div>
           <div class="book-info">
@@ -176,12 +194,21 @@
       <div v-else class="books-carousel">
         <div v-for="book in recommendations" :key="book.id" class="book-card">
           <div class="book-image">
-            <div v-if="book.coverImage" class="image-container">
-              <img :src="book.coverImage" :alt="book.title" />
-            </div>
+            <template
+              v-if="book.picture && testImageAvailability(book.picture)"
+            >
+              <div class="image-container">
+                <img
+                  :src="getBookImageUrl(book.picture)"
+                  :alt="book.title"
+                  @error="handleImageError"
+                />
+              </div>
+            </template>
             <div v-else class="default-cover">
-              <i class="fas fa-book"></i>
-              <span class="book-title-placeholder">{{ book.title }}</span>
+              <span>{{
+                book.title ? book.title.charAt(0).toUpperCase() : 'L'
+              }}</span>
             </div>
           </div>
           <div class="book-info">
@@ -245,12 +272,13 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { useStore } from 'vuex';
 import BookService from '@/services/BookService';
 import CategoryService from '@/services/CategoryService';
 import NewsletterService from '@/services/NewsletterService';
+import { computed, onMounted, reactive, ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { useStore } from 'vuex';
+// Importer l'image par défaut
 
 export default {
   name: 'HomeView',
@@ -289,6 +317,23 @@ export default {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       return emailRegex.test(newsletterEmail.value);
     });
+
+    // Cache pour les images testées et non disponibles
+    const unavailableImages = reactive(new Set());
+
+    // Tester si une image est disponible (en utilisant le cache)
+    const testImageAvailability = (picture) => {
+      // Si l'image est déjà dans le cache des indisponibles, retourner false
+      if (unavailableImages.has(picture)) {
+        return false;
+      }
+      return true;
+    };
+
+    // Formatage de l'URL d'image
+    const getBookImageUrl = (imagePath) => {
+      return BookService.getBookCoverUrl(imagePath);
+    };
 
     // Méthodes
     const fetchNewReleases = async () => {
@@ -473,6 +518,45 @@ export default {
       }
     };
 
+    // Gestionnaire d'erreur pour les images
+    const handleImageError = (e) => {
+      console.log("Erreur de chargement d'image:", e.target.src);
+
+      // Mettre en cache l'image comme non disponible
+      if (e.target.src && typeof e.target.src === 'string') {
+        const url = e.target.src;
+        const match = url.match(/\/api\/uploads\/book-covers\/(.+)$/);
+        if (match && match[1]) {
+          unavailableImages.add(match[1]);
+        }
+      }
+
+      try {
+        // Utiliser l'image par défaut importée
+        e.target.src = require('@/assets/images/default-cover.jpg');
+        e.target.onerror = null; // Éviter les boucles infinies
+      } catch (error) {
+        // Si l'image par défaut échoue aussi, afficher la première lettre du titre
+        const parentElement = e.target.parentElement;
+        e.target.style.display = 'none';
+
+        // Vérifier si la div default-cover n'existe pas déjà
+        if (!parentElement.querySelector('.default-cover-letter')) {
+          const initialDiv = document.createElement('div');
+          initialDiv.className = 'default-cover-letter';
+
+          // Obtenir le titre du livre depuis l'attribut alt
+          const bookTitle = e.target.alt || 'Livre';
+          initialDiv.innerHTML = `<span>${bookTitle
+            .charAt(0)
+            .toUpperCase()}</span>`;
+
+          // Ajouter le div au parent
+          parentElement.appendChild(initialDiv);
+        }
+      }
+    };
+
     // Cycle de vie
     onMounted(() => {
       // Chargement parallèle des données
@@ -510,6 +594,10 @@ export default {
       formatPrice,
       getCategoryIcon,
       subscribeNewsletter,
+      unavailableImages,
+      testImageAvailability,
+      getBookImageUrl,
+      handleImageError,
     };
   },
 };
@@ -653,6 +741,12 @@ export default {
   color: #495057;
   padding: 1rem;
   text-align: center;
+}
+
+.default-cover span {
+  font-size: 3rem;
+  font-weight: bold;
+  color: #6c757d;
 }
 
 .default-cover i {

@@ -345,6 +345,7 @@ import api from '@/services/api';
 import { onMounted, reactive, ref } from 'vue';
 import { useStore } from 'vuex';
 import AvatarUpload from '@/components/AvatarUpload.vue';
+import { useRouter } from 'vue-router';
 
 export default {
   name: 'ProfileView',
@@ -354,6 +355,7 @@ export default {
 
   setup() {
     const store = useStore();
+    const router = useRouter();
     const user = ref({});
     const userStats = ref({});
     const userOrders = ref([]);
@@ -401,9 +403,37 @@ export default {
       error.value = '';
 
       try {
-        const response = await api.get('/users/me');
-        user.value = response.data;
-        console.log('Informations utilisateur:', user.value);
+        // Récupérer l'utilisateur du store Vuex s'il existe
+        const storeUser = store.getters['auth/currentUser'];
+
+        if (storeUser && Object.keys(storeUser).length > 0) {
+          console.log('Utilisateur récupéré du store Vuex:', storeUser);
+          user.value = storeUser;
+        } else {
+          // Sinon, essayer de récupérer du localStorage
+          const localUser = localStorage.getItem('user');
+          if (localUser) {
+            try {
+              user.value = JSON.parse(localUser);
+              console.log('Utilisateur récupéré du localStorage:', user.value);
+            } catch (e) {
+              console.error(
+                'Erreur lors du parsing des données utilisateur:',
+                e
+              );
+            }
+          }
+
+          // Si toujours pas d'utilisateur, appeler l'API
+          if (!user.value || Object.keys(user.value).length === 0) {
+            const response = await api.get('/auth/me');
+            user.value = response.data;
+            console.log(
+              "Informations utilisateur récupérées de l'API:",
+              user.value
+            );
+          }
+        }
 
         // Adapter les noms de champs si nécessaire
         if (user.value.first_name && !user.value.firstName) {
@@ -419,13 +449,25 @@ export default {
           user.value.id = user.value.user_id;
         }
 
+        // Mettre à jour le store si nécessaire
+        if (store && store.commit && Object.keys(user.value).length > 0) {
+          store.commit('auth/SET_USER', user.value);
+        }
+
         // Charger les statistiques et les commandes
         fetchUserStats();
         fetchUserOrders();
       } catch (err) {
         console.error('Erreur lors du chargement du profil:', err);
-        error.value =
-          'Impossible de charger votre profil. Veuillez réessayer plus tard.';
+
+        if (err.response && err.response.status === 401) {
+          error.value = 'Votre session a expiré. Veuillez vous reconnecter.';
+          // Rediriger vers la page de connexion
+          router.push('/login');
+        } else {
+          error.value =
+            'Impossible de charger votre profil. Veuillez réessayer plus tard.';
+        }
       } finally {
         loading.value = false;
       }

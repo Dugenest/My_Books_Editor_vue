@@ -1,197 +1,199 @@
-// src/services/AuthService.js
-import api from './api';
+// AuthService.js
+import axios from 'axios';
 
-// Fonction utilitaire pour le décodage base64url
-function base64UrlDecode(str) {
-  // Ajouter le padding si nécessaire
-  let base64 = str;
-  switch (base64.length % 4) {
-    case 2:
-      base64 += '==';
-      break;
-    case 3:
-      base64 += '=';
-      break;
-  }
+// Configuration de base pour les requêtes API
+const API_URL = process.env.VUE_APP_API_URL || '/api';
 
-  // Remplacer les caractères spéciaux
-  base64 = base64.replace(/-/g, '+').replace(/_/g, '/');
+const AuthService = {
+  // Obtenir le token depuis le localStorage
+  getToken() {
+    return localStorage.getItem('token');
+  },
 
-  try {
-    // Utiliser atob pour décoder
-    const decoded = atob(base64);
-    // Convertir la chaîne décodée en UTF-8
-    return decodeURIComponent(
-      Array.from(decoded)
-        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
-    );
-  } catch (e) {
-    console.error('Erreur de décodage base64:', e);
-    throw e;
-  }
-}
-
-class AuthService {
-  /**
-   * Connecte un utilisateur
-   * @param {Object} credentials - Données de connexion
-   * @returns {Promise<Object>} - Réponse de l'API avec le token
-   */
-  async login(credentials) {
-    try {
-      console.log('🔍 Tentative de connexion:', credentials.email);
-      // Utiliser /auth/login au lieu de /api/auth/login car baseURL inclut déjà /api
-      const response = await api.post('/auth/login', credentials);
-      console.log('✅ Connexion réussie:', response.data);
-
-      // Stocker le token dans le localStorage
-      localStorage.setItem('auth_token', response.data.token);
-      localStorage.setItem('user_info', JSON.stringify(response.data.user));
-
-      return response;
-    } catch (error) {
-      console.error('❌ Erreur de connexion:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Inscription d'un nouvel utilisateur
-   * @param {Object} credentials - Données d'inscription
-   * @returns {Promise<Object>} - Réponse de l'API
-   */
-  async register(credentials) {
-    try {
-      console.log("🔍 Tentative d'inscription:", credentials.email);
-      // Utiliser /auth/register au lieu de /api/auth/register car baseURL inclut déjà /api
-      const response = await api.post('/auth/register', credentials);
-      console.log('✅ Inscription réussie:', response.data);
-      return response;
-    } catch (error) {
-      console.error("❌ Erreur d'inscription:", error);
-      throw error;
-    }
-  }
-
-  /**
-   * Déconnexion de l'utilisateur
-   */
-  logout() {
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('user_info');
-    sessionStorage.removeItem('auth_token');
-    sessionStorage.removeItem('user_info');
-  }
-
-  /**
-   * Récupère l'utilisateur connecté
-   * @returns {Promise} - Promesse contenant les données de l'utilisateur
-   */
-  getCurrentUser() {
-    return api.get('/users/me');
-  }
-
-  /**
-   * Vérifie si l'utilisateur est connecté
-   * @returns {boolean} - True si l'utilisateur est connecté
-   */
+  // Vérifier si l'utilisateur est authentifié
   isAuthenticated() {
-    const token =
-      localStorage.getItem('auth_token') ||
-      sessionStorage.getItem('auth_token');
-    if (!token) return false;
-
-    try {
-      const payload = JSON.parse(base64UrlDecode(token.split('.')[1]));
-      return payload.exp * 1000 > Date.now();
-    } catch (e) {
-      console.error('Erreur lors de la vérification du token:', e);
+    const token = this.getToken();
+    if (!token) {
+      console.log('Pas de token trouvé, utilisateur non authentifié');
       return false;
     }
-  }
 
-  /**
-   * Récupère le token d'authentification
-   * @returns {string|null} - Le token d'authentification ou null
-   */
-  getToken() {
-    return (
-      localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token')
-    );
-  }
+    try {
+      // Vérifier la validité du token (format simple)
+      const parts = token.split('.');
+      if (parts.length !== 3) {
+        console.log('Format de token invalide, utilisateur non authentifié');
+        return false;
+      }
 
-  /**
-   * Met à jour le profil de l'utilisateur
-   * @param {Object} userData - Nouvelles données de l'utilisateur
-   * @returns {Promise} - Promesse contenant les données mises à jour
-   */
-  updateProfile(userData) {
-    return api.put('/auth/profile', userData);
-  }
+      // Vérifier si le token est expiré (si possible)
+      try {
+        const payload = JSON.parse(atob(parts[1]));
+        if (payload.exp && Date.now() >= payload.exp * 1000) {
+          console.log('Token expiré, utilisateur non authentifié');
+          this.logout(); // Nettoyer le localStorage si le token est expiré
+          return false;
+        }
+      } catch (e) {
+        console.log('Impossible de décoder le token, mais on continue');
+        // Continuer même si on ne peut pas décoder le token
+      }
 
-  /**
-   * Change le mot de passe de l'utilisateur
-   * @param {Object} passwordData - Données de changement de mot de passe
-   * @returns {Promise} - Promesse contenant la réponse du serveur
-   */
-  changePassword(passwordData) {
-    return api.put('/auth/change-password', passwordData);
-  }
+      return true;
+    } catch (error) {
+      console.error('Erreur lors de la vérification du token:', error);
+      // En cas d'erreur dans la validation du token, considérer l'utilisateur comme non authentifié
+      this.logout();
+      return false;
+    }
+  },
 
-  /**
-   * Demande de réinitialisation de mot de passe
-   * @param {string} email - Email de l'utilisateur
-   * @returns {Promise} - Promesse contenant la réponse du serveur
-   */
-  requestPasswordReset(email) {
-    return api.post('/auth/forgot-password', { email });
-  }
+  // Récupérer l'utilisateur courant à partir du token
+  async getCurrentUser() {
+    try {
+      const token = this.getToken();
+      if (!token) {
+        return null;
+      }
 
-  /**
-   * Réinitialise le mot de passe avec un token
-   * @param {Object} resetData - Données de réinitialisation
-   * @returns {Promise} - Promesse contenant la réponse du serveur
-   */
-  resetPassword(resetData) {
-    return api.post('/auth/reset-password', resetData);
-  }
+      const response = await axios.get(`${API_URL}/auth/me`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-  /**
-   * Vérifie si un email est déjà utilisé
-   * @param {string} email - Email à vérifier
-   * @returns {Promise} - Promesse contenant la réponse du serveur
-   */
-  checkEmail(email) {
-    return api.get('/auth/check-email', { params: { email } });
-  }
+      return response;
+    } catch (error) {
+      console.error("Erreur lors de la récupération de l'utilisateur:", error);
+      this.logout();
+      return null;
+    }
+  },
 
-  /**
-   * Vérifie si un nom d'utilisateur est déjà utilisé
-   * @param {string} username - Nom d'utilisateur à vérifier
-   * @returns {Promise} - Promesse contenant la réponse du serveur
-   */
-  checkUsername(username) {
-    return api.get('/auth/check-username', { params: { username } });
-  }
+  // Connexion utilisateur
+  async login(credentials) {
+    try {
+      // Assurez-vous que cette URL correspond à votre endpoint d'API
+      const response = await axios.post(
+        `${API_URL}/api/auth/login`,
+        credentials
+      );
 
-  /**
-   * Active le compte d'un utilisateur
-   * @param {string} token - Token d'activation
-   * @returns {Promise} - Promesse contenant la réponse du serveur
-   */
-  activateAccount(token) {
-    return api.post('/auth/activate', { token });
-  }
+      if (response.data && response.data.token) {
+        localStorage.setItem('token', response.data.token);
 
-  /**
-   * Renvoie l'email d'activation
-   * @param {string} email - Email de l'utilisateur
-   * @returns {Promise} - Promesse contenant la réponse du serveur
-   */
-  resendActivationEmail(email) {
-    return api.post('/auth/resend-activation', { email });
-  }
-}
+        // Stockage des informations utilisateur pour un accès rapide
+        if (response.data.user) {
+          localStorage.setItem('user', JSON.stringify(response.data.user));
+        }
 
-export default new AuthService();
+        // Configuration de l'en-tête Authorization pour toutes les futures requêtes
+        axios.defaults.headers.common[
+          'Authorization'
+        ] = `Bearer ${response.data.token}`;
+      }
+      return response;
+    } catch (error) {
+      console.error('Erreur de connexion:', error);
+      throw error;
+    }
+  },
+
+  // Déconnexion utilisateur
+  logout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    delete axios.defaults.headers.common['Authorization'];
+  },
+
+  // Récupération de l'utilisateur du localStorage (pour un accès rapide sans API)
+  getUserFromLocalStorage() {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      try {
+        return JSON.parse(userStr);
+      } catch (e) {
+        console.error('Erreur lors du parsing des données utilisateur:', e);
+        localStorage.removeItem('user');
+      }
+    }
+    return null;
+  },
+
+  // Vérifier si l'utilisateur a un rôle spécifique
+  hasRole(role) {
+    const user = this.getUserFromLocalStorage();
+    if (!user || !user.role) return false;
+
+    // Normalisation du rôle (supprimer ROLE_ si présent et mettre en majuscules)
+    let userRole = user.role.toUpperCase();
+    if (userRole.startsWith('ROLE_')) {
+      userRole = userRole.substring(5);
+    }
+
+    const normalizedRole = role.toUpperCase().replace('ROLE_', '');
+    return userRole === normalizedRole;
+  },
+
+  // Vérifier si l'utilisateur est admin
+  isAdmin() {
+    return this.hasRole('ADMIN');
+  },
+
+  // Vérifier si l'utilisateur est auteur
+  isAuthor() {
+    return this.hasRole('AUTHOR');
+  },
+
+  // Vérifier si l'utilisateur est éditeur
+  isEditor() {
+    return this.hasRole('EDITOR');
+  },
+
+  // Initialisation du service au démarrage de l'application
+  async initAuth() {
+    const token = this.getToken();
+    if (!token) {
+      console.log('Pas de token au démarrage, utilisateur non authentifié');
+      return false;
+    }
+
+    // Configuration de l'en-tête Authorization
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+    // Vérifier la validité du token
+    if (this.isAuthenticated()) {
+      try {
+        // Récupérer les informations utilisateur à jour
+        const userResponse = await axios.get(`${API_URL}/auth/me`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (userResponse.data) {
+          // Mettre à jour les informations de l'utilisateur dans le localStorage
+          localStorage.setItem('user', JSON.stringify(userResponse.data));
+          console.log('Informations utilisateur mises à jour au démarrage');
+        }
+
+        return true;
+      } catch (error) {
+        console.error('Erreur lors de la récupération du profil:', error);
+        // Si l'API renvoie une erreur (token invalide, etc.), nettoyer
+        if (
+          error.response &&
+          (error.response.status === 401 || error.response.status === 403)
+        ) {
+          console.log('Token invalide ou expiré, déconnexion...');
+          this.logout();
+        }
+        return false;
+      }
+    }
+
+    return false;
+  },
+};
+
+export default AuthService;

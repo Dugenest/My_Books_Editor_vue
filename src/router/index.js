@@ -1,18 +1,30 @@
-import { createRouter, createWebHistory } from 'vue-router';
+import store from '@/store';
 import HomeView from '@/views/HomeView.vue';
-import RegisterView from '../views/RegisterView.vue';
-import AuthService from '@/services/AuthService';
-import SeriesView from '@/views/SeriesView.vue';
 import SeriesDetailsView from '@/views/SeriesDetailsView.vue';
+import SeriesView from '@/views/SeriesView.vue';
+import { createRouter, createWebHistory } from 'vue-router';
+import RegisterView from '../views/RegisterView.vue';
+
+// Vérifier si l'authentification a été vérifiée
+const waitForAuthCheck = async () => {
+  if (!store.getters['auth/isAuthChecked']) {
+    console.log(
+      'Authentification pas encore vérifiée, vérification en cours...'
+    );
+    await store.dispatch('auth/checkAuth');
+  }
+};
 
 // Garde de route pour les pages nécessitant une authentification
-const requireAuth = (to, from, next) => {
+const requireAuth = async (to, from, next) => {
+  await waitForAuthCheck();
+
   console.log(
     "Vérification de l'authentification:",
-    AuthService.isAuthenticated()
+    store.getters['auth/isAuthenticated']
   );
 
-  if (!AuthService.isAuthenticated()) {
+  if (!store.getters['auth/isAuthenticated']) {
     console.log('Non authentifié, redirection vers login');
     next({
       name: 'Login',
@@ -24,10 +36,15 @@ const requireAuth = (to, from, next) => {
   }
 };
 
-// Garde de route pour les pages nécessitant un rôle administrateur
-const requireAdmin = async (to, from, next) => {
-  try {
-    if (!AuthService.isAuthenticated()) {
+// Garde de route pour les pages nécessitant un rôle spécifique
+const requireRole = (roles) => {
+  return async (to, from, next) => {
+    await waitForAuthCheck();
+
+    console.log(`Vérification des rôles requis: ${roles.join(', ')}`);
+
+    // Vérifier si l'utilisateur est connecté
+    if (!store.getters['auth/isAuthenticated']) {
       console.log('Non authentifié, redirection vers login');
       next({
         name: 'Login',
@@ -36,70 +53,36 @@ const requireAdmin = async (to, from, next) => {
       return;
     }
 
-    const response = await AuthService.getCurrentUser();
-    const currentUser = response.data;
-
-    console.log('Vérification des permissions admin:', {
-      isAuthenticated: AuthService.isAuthenticated(),
-      user: currentUser,
-      role: currentUser ? currentUser.role : 'aucun',
-      path: to.path,
-    });
-
-    // Vérification d'accès selon le rôle et la route
-    if (currentUser) {
-      // Normalisation du rôle (supprimer ROLE_ si présent et mettre en majuscules)
-      let role = currentUser.role.toUpperCase();
-      if (role.startsWith('ROLE_')) {
-        role = role.substring(5); // Supprimer le préfixe ROLE_
-      }
-
-      console.log('Rôle normalisé:', role);
-
-      // Permettre l'accès à la route '/admin/author' pour les auteurs
-      if (
-        to.path === '/admin/author' &&
-        (role === 'AUTHOR' || role.includes('AUTHOR'))
-      ) {
-        console.log('Utilisateur AUTHOR, accès à /admin/author autorisé');
-        next();
-        return;
-      }
-
-      // Permettre l'accès à la route '/admin/editor' pour les éditeurs
-      if (
-        to.path === '/admin/editor' &&
-        (role === 'EDITOR' || role.includes('EDITOR'))
-      ) {
-        console.log('Utilisateur EDITOR, accès à /admin/editor autorisé');
-        next();
-        return;
-      }
-
-      // Vérifier si c'est un admin pour les autres routes
-      if (role === 'ADMIN' || role.includes('ADMIN')) {
-        console.log('Utilisateur ADMIN, accès autorisé');
-        next();
-        return;
-      }
-    }
-
-    console.log('Accès refusé, redirection');
-    next({ name: 'AccessDenied' });
-  } catch (error) {
-    console.error(
-      'Erreur lors de la vérification des permissions admin:',
-      error
+    // Vérifier si l'utilisateur a un des rôles requis
+    const hasRequiredRole = roles.some((role) =>
+      store.getters['auth/hasRole'](role)
     );
-    next({ name: 'AccessDenied' });
-  }
+
+    if (hasRequiredRole) {
+      console.log('Rôle autorisé, accès accordé');
+      next();
+    } else {
+      console.log('Rôle non autorisé, accès refusé');
+      next({ name: 'AccessDenied' });
+    }
+  };
 };
 
-// Garde de route pour les pages accessibles uniquement aux utilisateurs non connectés
-const requireGuest = (to, from, next) => {
-  console.log('Vérification du statut guest:', !AuthService.isAuthenticated());
+// Gardes spécifiques pour chaque type de route
+const requireAdmin = requireRole(['ADMIN']);
+const requireAuthor = requireRole(['ADMIN', 'AUTHOR']);
+const requireEditor = requireRole(['ADMIN', 'EDITOR']);
 
-  if (AuthService.isAuthenticated()) {
+// Garde de route pour les pages accessibles uniquement aux utilisateurs non connectés
+const requireGuest = async (to, from, next) => {
+  await waitForAuthCheck();
+
+  console.log(
+    'Vérification du statut guest:',
+    !store.getters['auth/isAuthenticated']
+  );
+
+  if (store.getters['auth/isAuthenticated']) {
     console.log("Déjà authentifié, redirection vers l'accueil");
     next({ name: 'Home' });
   } else {
@@ -148,29 +131,29 @@ const routes = [
     meta: {
       title: 'Administration | MyBooks',
       requiresAuth: true,
-      requiresAdmin: true,
+      requiredRoles: ['ADMIN'],
     },
   },
   {
     path: '/admin/author',
     name: 'AuthorDashboard',
     component: () => import('@/views/AdminView.vue'),
-    beforeEnter: requireAdmin,
+    beforeEnter: requireAuthor,
     meta: {
       title: 'Espace auteur | MyBooks',
       requiresAuth: true,
-      requiresAdmin: true,
+      requiredRoles: ['ADMIN', 'AUTHOR'],
     },
   },
   {
     path: '/admin/editor',
     name: 'EditorDashboard',
     component: () => import('@/views/AdminView.vue'),
-    beforeEnter: requireAdmin,
+    beforeEnter: requireEditor,
     meta: {
       title: 'Espace éditeur | MyBooks',
       requiresAuth: true,
-      requiresAdmin: true,
+      requiredRoles: ['ADMIN', 'EDITOR'],
     },
   },
   {
@@ -181,7 +164,7 @@ const routes = [
     meta: {
       title: 'Paramètres du site | MyBooks',
       requiresAuth: true,
-      requiresAdmin: true,
+      requiredRoles: ['ADMIN'],
     },
   },
   {
@@ -198,6 +181,7 @@ const routes = [
     path: '/login',
     name: 'Login',
     component: () => import('../views/Login/index.vue'),
+    beforeEnter: requireGuest,
     meta: {
       title: 'Connexion - MyBooks',
       requiresGuest: true,
@@ -294,8 +278,15 @@ const router = createRouter({
 });
 
 // Ajout d'un hook global pour déboguer les redirections
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   console.log(`Navigation de ${from.path} vers ${to.path}`);
+
+  // Vérifier l'authentification au chargement initial
+  if (!store.getters['auth/isAuthChecked']) {
+    console.log("Vérification de l'authentification avant navigation...");
+    await store.dispatch('auth/checkAuth');
+  }
+
   next();
 });
 

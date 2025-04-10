@@ -1,205 +1,178 @@
-// src/store/modules/auth.js
+// store/modules/auth.js
 import AuthService from '@/services/AuthService';
-
-// État initial
-const initialState = {
-  status: {
-    loggedIn: false,
-    loading: false,
-    error: null,
-  },
-  user: null,
-  token: null,
-};
-
-// Getters
-const getters = {
-  isLoggedIn: (state) => state.status.loggedIn,
-  isLoading: (state) => state.status.loading,
-  error: (state) => state.status.error,
-  currentUser: (state) => state.user,
-  hasRole: (state) => (role) => {
-    if (!state.user) return false;
-    return (
-      state.user.role === role ||
-      (state.user.roles && state.user.roles.includes(role))
-    );
-  },
-};
-
-// Actions
-const actions = {
-  // Action de connexion
-  async login({ commit }, credentials) {
-    commit('loginRequest');
-
-    try {
-      const response = await AuthService.login(credentials);
-
-      // Vérifier que response.data existe et contient token et user
-      if (response && response.data && response.data.token) {
-        const { token, user } = response.data;
-        commit('loginSuccess', { token, user });
-        return { success: true, user };
-      } else {
-        // Si les données ne sont pas dans le format attendu
-        commit('loginFailure', 'Format de réponse inattendu');
-        return { success: false, message: 'Format de réponse inattendu' };
-      }
-    } catch (error) {
-      console.error('Erreur de connexion:', error);
-      commit(
-        'loginFailure',
-        error.response?.data?.error || 'Erreur de connexion'
-      );
-      throw error;
-    }
-  },
-
-  // Action d'inscription
-  async register({ commit }, user) {
-    commit('registerRequest');
-
-    try {
-      const response = await AuthService.register(user);
-
-      // Vérifier si le backend a renvoyé une structure de données attendue
-      if (response && typeof response === 'object') {
-        // Si un token est fourni, connecter automatiquement l'utilisateur
-        if (response.token) {
-          commit('loginSuccess', {
-            token: response.token,
-            user: response.user,
-          });
-          return { success: true, user: response.user };
-        }
-        // Si seulement un message de succès est fourni (confirmation par email nécessaire)
-        else {
-          commit('registerSuccess');
-          return {
-            success: true,
-            message: response.message || 'Inscription réussie',
-            requiresEmailConfirmation: true,
-          };
-        }
-      } else {
-        // Si la réponse n'est pas un objet structuré comme attendu
-        console.log('Format de réponse inattendu:', response);
-        commit('registerSuccess');
-        return { success: true, message: 'Inscription réussie' };
-      }
-    } catch (error) {
-      commit('registerFailure');
-      console.error("Erreur d'inscription:", error);
-      throw error;
-    }
-  },
-
-  // Action de déconnexion
-  logout({ commit }) {
-    AuthService.logout();
-    commit('logout');
-  },
-
-  // Action pour vérifier l'état d'authentification actuel
-  checkAuth({ commit }) {
-    const isAuthenticated = AuthService.isAuthenticated();
-    const user = AuthService.getCurrentUser();
-    const token = AuthService.getToken();
-
-    if (isAuthenticated && user) {
-      commit('loginSuccess', { token, user });
-    } else {
-      commit('logout');
-    }
-  },
-
-  // Action de mise à jour du profil utilisateur
-  async updateProfile({ commit }, updatedUser) {
-    try {
-      const response = await AuthService.updateProfile(updatedUser);
-      const user = response.data;
-      commit('updateProfileSuccess', user);
-      return { success: true, user };
-    } catch (error) {
-      console.error('Erreur de mise à jour du profil:', error);
-      commit(
-        'updateProfileFailure',
-        error.response?.data?.message || 'Erreur de mise à jour'
-      );
-      throw error;
-    }
-  },
-
-  // Action pour définir un message d'erreur
-  setError({ commit }, message) {
-    commit('setError', message);
-  },
-
-  // Action pour effacer un message d'erreur
-  clearError({ commit }) {
-    commit('clearError');
-  },
-};
-
-// Mutations
-const mutations = {
-  // Mutations de connexion
-  loginRequest(state) {
-    state.status = { loggedIn: false, loading: true, error: null };
-  },
-  loginSuccess(state, { token, user }) {
-    state.status = { loggedIn: true, loading: false, error: null };
-    state.token = token;
-    state.user = user;
-  },
-  loginFailure(state, error) {
-    state.status = { loggedIn: false, loading: false, error };
-    state.token = null;
-    state.user = null;
-  },
-
-  // Mutations d'inscription
-  registerRequest(state) {
-    state.status = { ...state.status, loading: true, error: null };
-  },
-  registerSuccess(state) {
-    state.status = { ...state.status, loading: false, error: null };
-  },
-  registerFailure(state, error) {
-    state.status = { ...state.status, loading: false, error };
-  },
-
-  // Mutation de déconnexion
-  logout(state) {
-    state.status = { loggedIn: false, loading: false, error: null };
-    state.token = null;
-    state.user = null;
-  },
-
-  // Mutations de mise à jour du profil
-  updateProfileSuccess(state, user) {
-    state.user = user;
-    // Mise à jour du stockage local
-    localStorage.setItem('user', JSON.stringify(user));
-  },
-  updateProfileFailure(state, error) {
-    state.status = { ...state.status, error };
-  },
-
-  // Mutations pour la gestion des erreurs
-  setError(state, message) {
-    state.status.error = message;
-  },
-  clearError(state) {
-    state.status.error = null;
-  },
-};
 
 export default {
   namespaced: true,
-  state: initialState,
-  getters,
-  actions,
-  mutations,
+
+  state: {
+    token: localStorage.getItem('token') || null,
+    user: AuthService.getUserFromLocalStorage() || null,
+    isAuthChecked: false, // Indicateur si l'auth a été vérifiée
+  },
+
+  getters: {
+    // L'utilisateur est-il authentifié?
+    isAuthenticated: (state) => !!state.token,
+
+    // Obtenir l'utilisateur courant
+    currentUser: (state) => state.user,
+
+    // Obtenir le jeton d'authentification
+    token: (state) => state.token,
+
+    // Vérifier si l'utilisateur a un rôle spécifique
+    hasRole: (state) => (role) => {
+      if (!state.user || !state.user.role) return false;
+
+      // Normalisation du rôle (supprimer ROLE_ si présent et mettre en majuscules)
+      let userRole = state.user.role.toUpperCase();
+      if (userRole.startsWith('ROLE_')) {
+        userRole = userRole.substring(5);
+      }
+
+      const normalizedRole = role.toUpperCase().replace('ROLE_', '');
+      return userRole === normalizedRole;
+    },
+
+    // Vérifier si l'utilisateur est admin
+    isAdmin: (state, getters) => getters.hasRole('ADMIN'),
+
+    // Vérifier si l'utilisateur est auteur
+    isAuthor: (state, getters) => getters.hasRole('AUTHOR'),
+
+    // Vérifier si l'utilisateur est éditeur
+    isEditor: (state, getters) => getters.hasRole('EDITOR'),
+
+    // Vérifier si l'authentification a été vérifiée
+    isAuthChecked: (state) => state.isAuthChecked,
+
+    // Obtenir le rôle de l'utilisateur (pour les composants)
+    userRole: (state) => (state.user ? state.user.role : null),
+  },
+
+  mutations: {
+    SET_TOKEN(state, token) {
+      state.token = token;
+    },
+
+    SET_USER(state, user) {
+      state.user = user;
+    },
+
+    SET_AUTH_CHECKED(state, status) {
+      state.isAuthChecked = status;
+    },
+
+    LOGOUT(state) {
+      state.token = null;
+      state.user = null;
+    },
+  },
+
+  actions: {
+    // Connexion utilisateur
+    async login({ commit, dispatch }, credentials) {
+      try {
+        const response = await AuthService.login(credentials);
+
+        commit('SET_TOKEN', response.data.token);
+        commit('SET_USER', response.data.user);
+        commit('SET_AUTH_CHECKED', true);
+
+        return response;
+      } catch (error) {
+        dispatch(
+          'notifyError',
+          'Échec de la connexion: ' +
+            (error.response?.data?.message || error.message),
+          { root: true }
+        );
+        throw error;
+      }
+    },
+
+    // Déconnexion utilisateur
+    logout({ commit }) {
+      AuthService.logout();
+      commit('LOGOUT');
+    },
+
+    // Vérifier l'état d'authentification actuel
+    async checkAuth({ commit, state }) {
+      try {
+        console.log("Vérification de l'authentification...");
+
+        // Vérifier d'abord si un utilisateur existe déjà dans le state
+        if (state.user) {
+          console.log(
+            'Utilisateur déjà dans le state, authentification valide'
+          );
+          commit('SET_AUTH_CHECKED', true);
+          return true;
+        }
+
+        // Vérifier le token et initialiser l'authentification
+        const isAuth = await AuthService.initAuth();
+        console.log('Résultat initAuth:', isAuth);
+
+        if (!isAuth) {
+          console.log(
+            'Pas de token ou token invalide, utilisateur non authentifié'
+          );
+          commit('LOGOUT');
+          commit('SET_AUTH_CHECKED', true);
+          return false;
+        }
+
+        try {
+          // Récupérer l'utilisateur courant depuis l'API
+          console.log('Récupération des informations utilisateur...');
+          const response = await AuthService.getCurrentUser();
+
+          if (response && response.data) {
+            console.log(
+              'Informations utilisateur récupérées avec succès:',
+              response.data
+            );
+            commit('SET_USER', response.data);
+            commit('SET_AUTH_CHECKED', true);
+
+            // Mettre à jour le localStorage avec les dernières données utilisateur
+            localStorage.setItem('user', JSON.stringify(response.data));
+
+            return true;
+          } else {
+            console.log('API a renvoyé une réponse vide');
+            commit('LOGOUT');
+            commit('SET_AUTH_CHECKED', true);
+            return false;
+          }
+        } catch (userError) {
+          console.error(
+            "Erreur lors de la récupération de l'utilisateur:",
+            userError
+          );
+
+          if (userError.response && userError.response.status === 401) {
+            // Si erreur 401, le token est probablement expiré
+            AuthService.logout();
+          }
+
+          commit('LOGOUT');
+          commit('SET_AUTH_CHECKED', true);
+          return false;
+        }
+      } catch (error) {
+        console.error(
+          "Erreur lors de la vérification de l'authentification:",
+          error
+        );
+
+        // En cas d'erreur, considérer l'utilisateur comme non authentifié
+        commit('LOGOUT');
+        commit('SET_AUTH_CHECKED', true);
+        return false;
+      }
+    },
+  },
 };

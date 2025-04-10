@@ -1,0 +1,402 @@
+/* Styles pour l'accessibilité - MyBooksEditor */
+
+/* ===== THÈME SOMBRE ===== */
+body.dark-theme {
+  background-color: #121212;
+  color: #e0e0e0;
+}
+
+body.dark-theme .app-header,
+body.dark-theme .app-footer,
+body.dark-theme .nav-item,
+body.dark-theme .book-card,
+body.dark-theme .category-card,
+body.dark-theme .author-card,
+body.dark-theme .section-container,
+body.dark-theme .hero-section {
+  background-color: #1e1e1e;
+  color: #e0e0e0;
+}
+
+body.dark-theme .card,
+body.dark-theme .sidebar,
+body.dark-theme .pagination-item,
+body.dark-theme .modal-content {
+  background-color: #2d2d2d;
+  color: #e0e0e0;
+  border-color: #444;
+}
+
+body.dark-theme .nav-link,
+body.dark-theme .site-name,
+body.dark-theme .cart-button,
+body.dark-theme .user-button,
+body.dark-theme .mobile-menu-toggle,
+body.dark-theme .book-title,
+body.dark-theme .section-title,
+body.dark-theme h1, 
+body.dark-theme h2, 
+body.dark-theme h3, 
+body.dark-theme h4, 
+body.dark-theme h5 {
+  color: #e0e0e0;
+}
+
+body.dark-theme .btn-secondary {
+  background-color: #3d3d3d;
+  color: #e0e0e0;
+  border-color: #5d5d5d;
+}
+
+body.dark-theme .btn-primary {
+  background-color: #3f51b5;
+  color: #fff;
+}
+
+body.dark-theme input,
+body.dark-theme select,
+body.dark-theme textarea {
+  background-color: #333;
+  color: #e0e0e0;
+  border-color: #555;
+}
+
+body.dark-theme .book-card {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-theme .book-price {
+  color: #81c784; /* Vert plus clair pour le contraste */
+}
+
+body.dark-theme .author-name {
+  color: #90caf9; /* Bleu plus clair pour le contraste */
+}
+
+body.dark-theme .separator-line {
+  background-color: #444;
+}
+
+body.dark-theme .carousel-arrow {
+  background-color: rgba(40, 40, 40, 0.7);
+  color: #e0e0e0;
+}
+
+/* ===== CONTRASTE ÉLEVÉ ===== */
+body.high-contrast {
+  background-color: #000;
+  color: #fff;
+}
+
+body.high-contrast .app-header,
+body.high-contrast .app-footer,
+body.high-contrast .book-card,
+body.high-contrast .section-container,
+body.high-contrast .hero-section {
+  background-color: #000;
+  color: #fff;
+  border: 1px solid #fff;
+}
+
+body.high-contrast .nav-link,
+body.high-contrast .site-name,
+body.high-contrast .cart-button,
+body.high-contrast .user-button,
+body.high-contrast .mobile-menu-toggle,
+body.high-contrast .book-title,
+body.high-contrast .section-title,
+body.high-contrast h1, 
+body.high-contrast h2, 
+body.high-contrast h3, 
+body.high-contrast h4, 
+body.high-contrast h5,
+body.high-contrast p,
+body.high-contrast span {
+  color: #fff;
+}
+
+body.high-contrast a {
+  color: #ffff00; /* Jaune pour un contraste très élevé */
+  text-decoration: underline;
+}
+
+body.high-contrast .btn-primary,
+body.high-contrast .btn-secondary {
+  background-color: #000;
+  color: #fff;
+  border: 2px solid #fff;
+  font-weight: bold;
+}
+
+body.high-contrast .btn-primary:hover,
+body.high-contrast .btn-secondary:hover {
+  background-color: #fff;
+  color: #000;
+}
+
+body.high-contrast input,
+body.high-contrast select,
+body.high-contrast textarea {
+  background-color: #000;
+  color: #fff;
+  border: 2px solid #fff;
+}
+
+body.high-contrast .book-price {
+  color: #ffff00; /* Jaune pour un contraste très élevé */
+  font-weight: bold;
+}
+
+body.high-contrast .author-name {
+  color: #ffff00;
+  font-weight: bold;
+}
+
+body.high-contrast img {
+  border: 2px solid #fff;
+  filter: grayscale(100%) contrast(150%);
+}
+
+/* ===== TAILLES DE TEXTE ===== */
+body.text-small {
+  font-size: 14px;
+}
+
+body.text-small h1 { font-size: 1.8rem; }
+body.text-small h2 { font-size: 1.5rem; }
+body.text-small h3 { font-size: 1.3rem; }
+body.text-small h4 { font-size: 1.1rem; }
+body.text-small .section-title { font-size: 1.5rem; }
+body.text-small .book-title { font-size: 0.9rem; }
+body.text-small .book-author { font-size: 0.8rem; }
+body.text-small .book-price { font-size: 0.9rem; }
+
+body.text-medium {
+  font-size: 16px;
+}
+
+body.text-medium h1 { font-size: 2rem; }
+body.text-medium h2 { font-size: 1.7rem; }
+body.text-medium h3 { font-size: 1.5rem; }
+body.text-medium h4 { font-size: 1.3rem; }
+body.text-medium .section-title { font-size: 1.7rem; }
+body.text-medium .book-title { font-size: 1rem; }
+body.text-medium .book-author { font-size: 0.9rem; }
+body.text-medium .book-price { font-size: 1rem; }
+
+body.text-large {
+  font-size: 18px;
+}
+
+body.text-large h1 { font-size: 2.3rem; }
+body.text-large h2 { font-size: 2rem; }
+body.text-large h3 { font-size: 1.8rem; }
+body.text-large h4 { font-size: 1.6rem; }
+body.text-large .section-title { font-size: 2rem; }
+body.text-large .book-title { font-size: 1.2rem; }
+body.text-large .book-author { font-size: 1.1rem; }
+body.text-large .book-price { font-size: 1.2rem; }
+
+/* ===== RÉDUCTION DES ANIMATIONS ===== */
+body.reduce-animations * {
+  transition: none !important;
+  animation: none !important;
+}
+
+body.reduce-animations .carousel-slide,
+body.reduce-animations .book-card:hover,
+body.reduce-animations .btn:hover,
+body.reduce-animations .nav-link::after {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+body.reduce-animations .carousel,
+body.reduce-animations .slider,
+body.reduce-animations .swiper-container {
+  scroll-behavior: auto !important;
+}
+
+/* Désactiver les transitions spécifiques */
+body.reduce-animations .fade-enter-active,
+body.reduce-animations .fade-leave-active,
+body.reduce-animations .slide-enter-active,
+body.reduce-animations .slide-leave-active {
+  transition: none !important;
+}
+
+/* Focus visibles pour l'accessibilité clavier */
+body:not(.reduce-animations) *:focus {
+  outline: 2px solid #3f51b5 !important;
+  outline-offset: 2px !important;
+}
+
+body.high-contrast *:focus {
+  outline: 3px solid #ffff00 !important;
+  outline-offset: 3px !important;
+}
+
+/* Espacement supplémentaire pour une meilleure lisibilité */
+body.text-large p,
+body.text-large li {
+  line-height: 1.8;
+  margin-bottom: 1em;
+}
+
+/* ===== STYLES SPÉCIFIQUES POUR LA PAGE D'ACCUEIL ===== */
+
+/* Thème sombre pour la page d'accueil */
+body.dark-theme .home-container {
+  background-color: #121212;
+}
+
+body.dark-theme .hero-section {
+  background-color: #1a1a1a;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+}
+
+body.dark-theme .hero-content h1,
+body.dark-theme .hero-content p {
+  color: #fff;
+}
+
+body.dark-theme .hero-search input {
+  background-color: #333;
+  color: #fff;
+  border-color: #444;
+}
+
+body.dark-theme .btn-search,
+body.dark-theme .btn-details,
+body.dark-theme .btn-add-to-cart {
+  background-color: #3f51b5;
+  color: #fff;
+  border: none;
+}
+
+body.dark-theme .section-header h2 {
+  color: #e0e0e0;
+}
+
+body.dark-theme .btn-view-all {
+  color: #90caf9;
+}
+
+body.dark-theme .book-card {
+  background-color: #2d2d2d;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  border-color: #444;
+}
+
+body.dark-theme .book-title {
+  color: #e0e0e0;
+}
+
+body.dark-theme .book-author {
+  color: #bdbdbd;
+}
+
+body.dark-theme .default-cover {
+  background: linear-gradient(135deg, #333333, #1a1a1a);
+  color: #90caf9;
+}
+
+body.dark-theme .category-card {
+  background-color: #2d2d2d;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  transition: transform 0.3s, box-shadow 0.3s;
+  border-color: #444;
+}
+
+body.dark-theme .category-card:hover {
+  background-color: #3a3a3a;
+  transform: translateY(-5px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+}
+
+body.dark-theme .category-icon {
+  color: #90caf9;
+}
+
+body.dark-theme .loading,
+body.dark-theme .error,
+body.dark-theme .no-recommendations {
+  color: #bdbdbd;
+  background-color: #1e1e1e;
+  border-color: #444;
+}
+
+/* Contraste élevé pour la page d'accueil */
+body.high-contrast .hero-section {
+  background-color: #000;
+  border: 2px solid #fff;
+}
+
+body.high-contrast .hero-content h1,
+body.high-contrast .hero-content p {
+  color: #fff;
+}
+
+body.high-contrast .hero-search input {
+  background-color: #000;
+  color: #fff;
+  border: 2px solid #fff;
+}
+
+body.high-contrast .btn-search {
+  background-color: #000;
+  color: #fff;
+  border: 2px solid #fff;
+}
+
+body.high-contrast .book-card {
+  background-color: #000;
+  border: 2px solid #fff;
+  box-shadow: none;
+}
+
+body.high-contrast .book-actions button {
+  background-color: #000;
+  color: #fff;
+  border: 2px solid #fff;
+  margin: 3px;
+}
+
+body.high-contrast .book-actions button:hover {
+  background-color: #fff;
+  color: #000;
+}
+
+body.high-contrast .default-cover {
+  background-color: #000;
+  border: 2px solid #fff;
+  color: #fff;
+}
+
+body.high-contrast .category-card {
+  background-color: #000;
+  border: 2px solid #fff;
+  color: #fff;
+}
+
+body.high-contrast .category-icon {
+  color: #ffff00;
+  font-size: 2rem;
+}
+
+/* Tailles de texte spécifiques pour la page d'accueil */
+body.text-large .hero-content h1 {
+  font-size: 2.5rem;
+}
+
+body.text-large .hero-content p {
+  font-size: 1.2rem;
+}
+
+body.text-small .book-title-placeholder {
+  font-size: 0.8rem;
+}
+
+body.text-large .book-title-placeholder {
+  font-size: 1.1rem;
+} 

@@ -60,6 +60,7 @@ export default {
 /* Fonts and base styles */
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css');
+@import '@/assets/css/accessibility.css';
 
 * {
   box-sizing: border-box;

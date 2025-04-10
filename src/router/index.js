@@ -43,31 +43,49 @@ const requireAdmin = async (to, from, next) => {
       isAuthenticated: AuthService.isAuthenticated(),
       user: currentUser,
       role: currentUser ? currentUser.role : 'aucun',
+      path: to.path,
     });
 
-    // Code de débogage pour vérifier le rôle
-    console.log(
-      'Test de rôle:',
-      currentUser && currentUser.role,
-      currentUser && currentUser.role === 'ADMIN',
-      currentUser && currentUser.role === 'admin',
-      currentUser && currentUser.role === 'ROLE_ADMIN',
-      currentUser && currentUser.role === 'ROLE_admin'
-    );
+    // Vérification d'accès selon le rôle et la route
+    if (currentUser) {
+      // Normalisation du rôle (supprimer ROLE_ si présent et mettre en majuscules)
+      let role = currentUser.role.toUpperCase();
+      if (role.startsWith('ROLE_')) {
+        role = role.substring(5); // Supprimer le préfixe ROLE_
+      }
 
-    if (
-      currentUser &&
-      (currentUser.role.toUpperCase() === 'ADMIN' ||
-        currentUser.role.toLowerCase() === 'admin' ||
-        currentUser.role === 'ROLE_admin' ||
-        currentUser.role === 'ROLE_ADMIN')
-    ) {
-      console.log('Utilisateur ADMIN, accès autorisé');
-      next();
-    } else {
-      console.log('Accès refusé, redirection');
-      next({ name: 'AccessDenied' });
+      console.log('Rôle normalisé:', role);
+
+      // Permettre l'accès à la route '/admin/author' pour les auteurs
+      if (
+        to.path === '/admin/author' &&
+        (role === 'AUTHOR' || role.includes('AUTHOR'))
+      ) {
+        console.log('Utilisateur AUTHOR, accès à /admin/author autorisé');
+        next();
+        return;
+      }
+
+      // Permettre l'accès à la route '/admin/editor' pour les éditeurs
+      if (
+        to.path === '/admin/editor' &&
+        (role === 'EDITOR' || role.includes('EDITOR'))
+      ) {
+        console.log('Utilisateur EDITOR, accès à /admin/editor autorisé');
+        next();
+        return;
+      }
+
+      // Vérifier si c'est un admin pour les autres routes
+      if (role === 'ADMIN' || role.includes('ADMIN')) {
+        console.log('Utilisateur ADMIN, accès autorisé');
+        next();
+        return;
+      }
     }
+
+    console.log('Accès refusé, redirection');
+    next({ name: 'AccessDenied' });
   } catch (error) {
     console.error(
       'Erreur lors de la vérification des permissions admin:',
@@ -128,7 +146,29 @@ const routes = [
     component: () => import('@/views/AdminView.vue'),
     beforeEnter: requireAdmin,
     meta: {
-      title: 'Tableau de bord administrateur | MyBooks',
+      title: 'Administration | MyBooks',
+      requiresAuth: true,
+      requiresAdmin: true,
+    },
+  },
+  {
+    path: '/admin/author',
+    name: 'AuthorDashboard',
+    component: () => import('@/views/AdminView.vue'),
+    beforeEnter: requireAdmin,
+    meta: {
+      title: 'Espace auteur | MyBooks',
+      requiresAuth: true,
+      requiresAdmin: true,
+    },
+  },
+  {
+    path: '/admin/editor',
+    name: 'EditorDashboard',
+    component: () => import('@/views/AdminView.vue'),
+    beforeEnter: requireAdmin,
+    meta: {
+      title: 'Espace éditeur | MyBooks',
       requiresAuth: true,
       requiresAdmin: true,
     },

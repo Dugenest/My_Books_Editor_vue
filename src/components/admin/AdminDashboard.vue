@@ -5,6 +5,7 @@
     <AdminSidebar
       :navSections="navSections"
       :currentSection="currentSection"
+      :userRole="userRole"
       @change-section="currentSection = $event"
     />
 
@@ -407,18 +408,84 @@ export default {
     });
 
     // Navigation sections
-    const navSections = [
-      { id: 'dashboard', label: 'Tableau de bord', icon: 'fas fa-chart-line' },
-      { id: 'orders', label: 'Commandes', icon: 'fas fa-shopping-cart' },
-      { id: 'books', label: 'Livres', icon: 'fas fa-book' },
-      { id: 'categories', label: 'Catégories', icon: 'fas fa-tags' },
-      { id: 'series', label: 'Séries', icon: 'fas fa-layer-group' },
-      { id: 'users', label: 'Utilisateurs', icon: 'fas fa-users' },
-      { id: 'authors', label: 'Auteurs', icon: 'fas fa-user-edit' },
-      { id: 'editors', label: 'Éditeurs', icon: 'fas fa-building' },
-      { id: 'comments', label: 'Commentaires', icon: 'fas fa-comments' },
-      { id: 'settings', label: 'Paramètres', icon: 'fas fa-cog' },
-    ];
+    const navSections = ref([
+      {
+        id: 'dashboard',
+        label: 'Tableau de bord',
+        icon: 'fas fa-chart-line',
+        roles: ['ADMIN', 'AUTHOR', 'EDITOR'],
+      },
+      {
+        id: 'orders',
+        label: 'Commandes',
+        icon: 'fas fa-shopping-cart',
+        roles: ['ADMIN'],
+      },
+      {
+        id: 'books',
+        label: 'Livres',
+        icon: 'fas fa-book',
+        roles: ['ADMIN', 'AUTHOR', 'EDITOR'],
+      },
+      {
+        id: 'categories',
+        label: 'Catégories',
+        icon: 'fas fa-tags',
+        roles: ['ADMIN', 'AUTHOR'],
+      },
+      {
+        id: 'series',
+        label: 'Séries',
+        icon: 'fas fa-layer-group',
+        roles: ['ADMIN'],
+      },
+      {
+        id: 'users',
+        label: 'Utilisateurs',
+        icon: 'fas fa-users',
+        roles: ['ADMIN'],
+      },
+      {
+        id: 'authors',
+        label: 'Auteurs',
+        icon: 'fas fa-user-edit',
+        roles: ['ADMIN', 'AUTHOR'],
+      },
+      {
+        id: 'editors',
+        label: 'Éditeurs',
+        icon: 'fas fa-building',
+        roles: ['ADMIN', 'EDITOR'],
+      },
+      {
+        id: 'comments',
+        label: 'Commentaires',
+        icon: 'fas fa-comments',
+        roles: ['ADMIN'],
+      },
+      {
+        id: 'settings',
+        label: 'Paramètres',
+        icon: 'fas fa-cog',
+        roles: ['ADMIN', 'AUTHOR', 'EDITOR'],
+      },
+    ]);
+
+    // Rôle de l'utilisateur connecté
+    const userRole = ref('AUTHOR'); // Valeur par défaut pour le test
+
+    // Vérifier si une section est accessible
+    const isSectionAccessible = (sectionId) => {
+      const section = navSections.value.find((s) => s.id === sectionId);
+      return section ? section.roles.includes(userRole.value) : false;
+    };
+
+    // Surveiller les changements de section pour vérifier l'accès
+    watch(currentSection, (newSection) => {
+      if (!isSectionAccessible(newSection)) {
+        currentSection.value = 'dashboard';
+      }
+    });
 
     console.log('Chargement des données du tableau de bord...');
     // Charger les données
@@ -1564,8 +1631,43 @@ export default {
       }
     };
 
-    // Navigation between sections
-    onMounted(() => {
+    // Appeler la fonction pour récupérer le rôle de l'utilisateur au montage
+    onMounted(async () => {
+      try {
+        // Charger le rôle de l'utilisateur
+        const response = await UserService.getUserRole();
+
+        // Vérifier si la réponse contient une propriété role ou si c'est directement une chaîne
+        if (response.data && typeof response.data === 'object') {
+          if (response.data.role) {
+            // Format {role: 'AUTHOR', roles: [...]}
+            userRole.value = response.data.role.toUpperCase();
+          } else if (response.data.roles && response.data.roles.length > 0) {
+            // Format {roles: ['AUTHOR', ...]}
+            const roles = response.data.roles.map((r) => r.toUpperCase());
+            if (roles.some((r) => r === 'AUTHOR' || r.includes('AUTHOR'))) {
+              userRole.value = 'AUTHOR';
+            } else if (
+              roles.some((r) => r === 'EDITOR' || r.includes('EDITOR'))
+            ) {
+              userRole.value = 'EDITOR';
+            } else if (
+              roles.some((r) => r === 'ADMIN' || r.includes('ADMIN'))
+            ) {
+              userRole.value = 'ADMIN';
+            }
+          }
+        } else if (typeof response.data === 'string') {
+          // C'est directement une chaîne
+          userRole.value = response.data.toUpperCase();
+        }
+
+        console.log('Rôle utilisateur chargé:', userRole.value);
+      } catch (error) {
+        console.error('Erreur lors du chargement du rôle utilisateur:', error);
+        // En cas d'erreur, on garde la valeur par défaut 'AUTHOR'
+      }
+
       // Charger les données initiales
       console.log('Composant monté, chargement des données initiales');
       loadDashboardData();
@@ -1612,6 +1714,8 @@ export default {
       currentSection,
       isLoading,
       navSections,
+      userRole,
+      isSectionAccessible,
 
       // États pour les modales
       showAddBookModal,

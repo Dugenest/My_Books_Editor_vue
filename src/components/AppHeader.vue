@@ -145,7 +145,23 @@
                   to="/admin/settings"
                   class="dropdown-link"
                 >
-                  <i class="fas fa-cog"></i> Paramètres du site
+                  <i class="fas fa-cog"></i> Administration
+                </router-link>
+                <!-- Option pour les auteurs -->
+                <router-link
+                  v-if="isAuthor"
+                  to="/admin/author"
+                  class="dropdown-link"
+                >
+                  <i class="fas fa-user-edit"></i> Espace auteur
+                </router-link>
+                <!-- Option pour les éditeurs -->
+                <router-link
+                  v-if="isEditor"
+                  to="/admin/editor"
+                  class="dropdown-link"
+                >
+                  <i class="fas fa-building"></i> Espace éditeur
                 </router-link>
                 <a href="#" @click.prevent="logout" class="dropdown-link">
                   <i class="fas fa-sign-out-alt"></i> Déconnexion
@@ -255,12 +271,36 @@
               >Mes commandes</router-link
             >
           </li>
+          <li v-if="isAuthenticated" class="mobile-nav-item">
+            <router-link
+              to="/wishlist"
+              class="mobile-nav-link"
+              @click="showMobileMenu = false"
+              >Ma liste d'envies</router-link
+            >
+          </li>
           <li v-if="isAuthenticated && isAdmin" class="mobile-nav-item">
             <router-link
               to="/admin/settings"
               class="mobile-nav-link"
               @click="showMobileMenu = false"
-              >Paramètres du site</router-link
+              >Administration</router-link
+            >
+          </li>
+          <li v-if="isAuthenticated && isAuthor" class="mobile-nav-item">
+            <router-link
+              to="/admin/author"
+              class="mobile-nav-link"
+              @click="showMobileMenu = false"
+              >Espace auteur</router-link
+            >
+          </li>
+          <li v-if="isAuthenticated && isEditor" class="mobile-nav-item">
+            <router-link
+              to="/admin/editor"
+              class="mobile-nav-link"
+              @click="showMobileMenu = false"
+              >Espace éditeur</router-link
             >
           </li>
           <li v-if="isAuthenticated" class="mobile-nav-item">
@@ -295,7 +335,35 @@ export default {
 
     // Propriétés calculées
     const isAuthenticated = computed(() => store.getters['auth/isLoggedIn']);
-    const isAdmin = computed(() => store.getters['auth/hasRole']('ADMIN'));
+    const isAdmin = computed(() => {
+      const user = store.getters['auth/currentUser'];
+      if (!user || !user.role) return false;
+
+      const role = user.role.toUpperCase();
+      return (
+        role === 'ADMIN' || role.includes('ADMIN') || role === 'ROLE_ADMIN'
+      );
+    });
+
+    const isAuthor = computed(() => {
+      const user = store.getters['auth/currentUser'];
+      if (!user || !user.role) return false;
+
+      const role = user.role.toUpperCase();
+      return (
+        role === 'AUTHOR' || role.includes('AUTHOR') || role === 'ROLE_AUTHOR'
+      );
+    });
+
+    const isEditor = computed(() => {
+      const user = store.getters['auth/currentUser'];
+      if (!user || !user.role) return false;
+
+      const role = user.role.toUpperCase();
+      return (
+        role === 'EDITOR' || role.includes('EDITOR') || role === 'ROLE_EDITOR'
+      );
+    });
     const userName = computed(() => {
       const user = store.getters['auth/currentUser'];
       return user ? `${user.firstName} ${user.lastName}` : '';
@@ -404,6 +472,8 @@ export default {
       showMobileMenu,
       isAuthenticated,
       isAdmin,
+      isAuthor,
+      isEditor,
       userName,
       userEmail,
       cartItems,

@@ -13,7 +13,7 @@
 
     <div class="nav-content" :class="{ 'mobile-open': isMobileNavOpen }">
       <div
-        v-for="(section, index) in navSections"
+        v-for="(section, index) in filteredNavSections"
         :key="index"
         class="nav-section"
       >
@@ -31,7 +31,7 @@
 </template>
 
 <script>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 
 export default {
   name: 'AdminSidebar',
@@ -45,15 +45,28 @@ export default {
       type: String,
       required: true,
     },
+    userRole: {
+      type: String,
+      required: true,
+      default: 'AUTHOR',
+    },
   },
 
   emits: ['change-section'],
 
-  setup() {
+  setup(props) {
     const isMobileNavOpen = ref(false);
+
+    // Filtrer les sections en fonction du rôle de l'utilisateur
+    const filteredNavSections = computed(() => {
+      return props.navSections.filter((section) =>
+        section.roles.includes(props.userRole)
+      );
+    });
 
     return {
       isMobileNavOpen,
+      filteredNavSections,
     };
   },
 };

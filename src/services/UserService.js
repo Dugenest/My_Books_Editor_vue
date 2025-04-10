@@ -105,6 +105,11 @@ class UserService {
   updateUserStatus(userId, status) {
     return api.put(`/users/${userId}/status`, { active: status });
   }
+
+  // Récupérer le rôle de l'utilisateur connecté
+  getUserRole() {
+    return api.get('/users/me/role'); // Assurez-vous que cet endpoint existe
+  }
 }
 
 export default new UserService();
